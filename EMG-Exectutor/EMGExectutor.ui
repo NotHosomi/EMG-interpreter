@@ -174,7 +174,7 @@
          <bool>true</bool>
         </property>
         <property name="maximum">
-         <number>100</number>
+         <number>1023</number>
         </property>
         <property name="value">
          <number>24</number>
@@ -206,7 +206,7 @@
          <bool>true</bool>
         </property>
         <property name="maximum">
-         <number>100</number>
+         <number>1023</number>
         </property>
         <property name="value">
          <number>24</number>
@@ -259,7 +259,7 @@
          <bool>true</bool>
         </property>
         <property name="maximum">
-         <number>100</number>
+         <number>1023</number>
         </property>
         <property name="value">
          <number>24</number>
@@ -320,9 +320,9 @@
     <property name="geometry">
      <rect>
       <x>480</x>
-      <y>80</y>
+      <y>130</y>
       <width>151</width>
-      <height>261</height>
+      <height>211</height>
      </rect>
     </property>
    </widget>
@@ -337,6 +337,41 @@
     </property>
     <property name="text">
      <string>Disconnect</string>
+    </property>
+    <property name="default">
+     <bool>false</bool>
+    </property>
+    <property name="flat">
+     <bool>false</bool>
+    </property>
+   </widget>
+   <widget class="QLineEdit" name="textEdit_TempLoad">
+    <property name="geometry">
+     <rect>
+      <x>480</x>
+      <y>80</y>
+      <width>151</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Model...</string>
+    </property>
+    <property name="frame">
+     <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="BtnTempLoad">
+    <property name="geometry">
+     <rect>
+      <x>480</x>
+      <y>100</y>
+      <width>151</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Load</string>
     </property>
     <property name="default">
      <bool>false</bool>

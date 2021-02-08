@@ -3,6 +3,7 @@
 #include <QtWidgets/QMainWindow>
 #include "ui_EMGExectutor.h"
 #include "SignalParser.h"
+#include <qtimer.h>
 
 class EMGExectutor : public QMainWindow
 {
@@ -14,10 +15,13 @@ public:
 
 private:
     Ui::EMGExectutorClass ui;
-
     SignalParser* parser = nullptr;
+    QTimer* refresh;
+    bool hasModel = false;
 
 private slots:
     void connectPressed();
     void disconnectPressed();
+    void updateBars();
+    void loadModel();
 };

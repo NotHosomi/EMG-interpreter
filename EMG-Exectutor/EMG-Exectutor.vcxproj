@@ -96,6 +96,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="DumbLstm.cpp" />
     <ClCompile Include="Serial.cpp" />
     <ClCompile Include="SignalParser.cpp" />
     <ClCompile Include="Timer.cpp" />
@@ -106,6 +107,7 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="DumbLstm.h" />
     <ClInclude Include="Serial.h" />
     <ClInclude Include="SignalParser.h" />
     <ClInclude Include="Timer.h" />
