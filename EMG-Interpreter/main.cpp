@@ -11,10 +11,6 @@ int CELL_SIZE = 10;
 
 int main()
 {
-    bool training;
-    // input "training? " y/n
-
-
 #pragma region BUILD NET
 
     Lstm* lstm;
@@ -22,15 +18,15 @@ int main()
     std::ifstream net_file;
     std::cout << "Cell File: ";
     std::cin >> fileaddress;
-    net_file.open(fileaddress + ".dat", std::ios::binary || std::ios::in);
+    net_file.open("nets/" + fileaddress + ".dat", std::ios::binary || std::ios::in);
     if (net_file)
     {
-        std::cout << "Loading " << fileaddress << ".dat" << std::endl;
+        std::cout << "Loading 'nets/" << fileaddress << ".dat'" << std::endl;
         lstm = new Lstm(net_file, 0.15);
     }
     else
     {
-        std::cout << "Creating new network \"fileaddress\"" << std::endl;
+        std::cout << "Creating new network \"fileaddress.dat\"" << std::endl;
         lstm = new Lstm(INPUT_SIZE, CELL_SIZE, 0.15);
     }
 
@@ -43,13 +39,14 @@ int main()
     {
         std::cout << "Signal File: ";
         std::cin >> fileaddress;
-        data_file.open(fileaddress + ".emg");
+        data_file.open("data/" + fileaddress + ".emg");
         if (data_file)
         {
             break;
         }
-        std::cout << "Failed to open file " << fileaddress << ".emg" << std::endl;
+        std::cout << "Failed to open file 'data/" << fileaddress << ".emg'" << std::endl;
     }
+    std::cout << "Mounting signal data..." << std::endl;
 
     // 8 = input
     std::vector<int> values;
@@ -91,6 +88,7 @@ int main()
         }
     }
     data_file.close();
+    std::cout << "Signal data mounted" << std::endl;
 
 #pragma endregion
 
@@ -98,14 +96,20 @@ int main()
 
     for (int seq = 0; seq < input_sequences.size(); ++seq)
     {
+        std::cout << "Training on sequence " << std::to_string(seq) << std::endl;
         lstm->resize(input_sequences[seq].size());
         for (auto& input : input_sequences[seq])
         {
             lstm->feedForward(input);
         }
-        lstm->backProp(label_sequences[seq]);
+        double avg_err = lstm->backProp(label_sequences[seq]);
+        avg_err /= input_sequences[seq].size();
+        std::cout << "Avg Error: " << std::to_string(avg_err) << std::endl;
     }
+    lstm->saveCell();
 
 #pragma endregion
+
+    delete lstm;
     return 0;
 }

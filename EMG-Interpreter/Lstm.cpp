@@ -325,10 +325,10 @@ bool Lstm::saveCell()
 	std::cout << "\nSave to: ";
 	std::cin >> filename;
 	std::ofstream file;
-	file.open("" + filename + ".dat", std::ios::binary | std::ios::out | std::ios::trunc);
+	file.open("nets/" + filename + ".dat", std::ios::binary | std::ios::out | std::ios::trunc);
 	if (!file)
 	{
-		std::cout << "Failed to open " << filename << "_gates.dat" << std::endl;
+		std::cout << "Failed to open 'nets/" << filename << ".dat'" << std::endl;
 		return false;
 	}
 
@@ -348,7 +348,7 @@ bool Lstm::saveCell()
 		{ file.write(reinterpret_cast<char*>(&val), sizeof(double)); });
 
 
-	std::cout << "\nSaved." << std::endl;
+	std::cout << "\nSaved to 'nets/" + filename + ".dat'" << std::endl;
 	file.close();
 	return true;
 }

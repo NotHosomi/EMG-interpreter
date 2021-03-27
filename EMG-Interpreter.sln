@@ -7,6 +7,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "EMG-Trainer", "EMG-Interpre
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "EMG-Exectutor", "EMG-Exectutor\EMG-Exectutor.vcxproj", "{3ECEDD88-3FB2-4C38-9118-D5B5DEC03C02}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "EMG-Collector", "Training-Data-Builder\Training-Data-Builder.vcxproj", "{A5D0EBA7-52AA-40EB-9B55-829243E62443}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -29,6 +31,14 @@ Global
 		{3ECEDD88-3FB2-4C38-9118-D5B5DEC03C02}.Release|x64.ActiveCfg = Release|x64
 		{3ECEDD88-3FB2-4C38-9118-D5B5DEC03C02}.Release|x64.Build.0 = Release|x64
 		{3ECEDD88-3FB2-4C38-9118-D5B5DEC03C02}.Release|x86.ActiveCfg = Release|x64
+		{A5D0EBA7-52AA-40EB-9B55-829243E62443}.Debug|x64.ActiveCfg = Debug|x64
+		{A5D0EBA7-52AA-40EB-9B55-829243E62443}.Debug|x64.Build.0 = Debug|x64
+		{A5D0EBA7-52AA-40EB-9B55-829243E62443}.Debug|x86.ActiveCfg = Debug|Win32
+		{A5D0EBA7-52AA-40EB-9B55-829243E62443}.Debug|x86.Build.0 = Debug|Win32
+		{A5D0EBA7-52AA-40EB-9B55-829243E62443}.Release|x64.ActiveCfg = Release|x64
+		{A5D0EBA7-52AA-40EB-9B55-829243E62443}.Release|x64.Build.0 = Release|x64
+		{A5D0EBA7-52AA-40EB-9B55-829243E62443}.Release|x86.ActiveCfg = Release|Win32
+		{A5D0EBA7-52AA-40EB-9B55-829243E62443}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
