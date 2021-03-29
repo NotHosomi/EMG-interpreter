@@ -55,7 +55,7 @@ bool truncateBuffer(char* buffer, unsigned int content_length)
     buffer[output_length] = '\0';
     return true;
 }
-
+#if 0
 sample buildSample(char* buffer)
 {
     sample s;
@@ -86,12 +86,12 @@ sample buildSample(char* buffer)
 
     return s;
 }
+#endif
 
-void saveSample(const char* inputs, std::ofstream& file)
+std::string genLabels()
 {
-    std::string s(inputs);
-
     // FYUL, FTYJ
+    std::string s;
     s += "-";
     s += GetAsyncKeyState(VK_SPACE) ? "1" : "0";
     s += "-";
@@ -103,10 +103,25 @@ void saveSample(const char* inputs, std::ofstream& file)
     s += "-";
     s += GetAsyncKeyState('J') ? "1" : "0";
     s += "!";
+}
 
+void saveSample(const char* inputs, const std::string& labels, std::ofstream& file)
+{
+    std::string s(inputs);
+    s += labels;
     file << s;
     std::cout << s << std::endl;
 }
+
+//bool parseBuffer(char* buffer, unsigned int content_length, std::ofstream& file)
+//{
+//    for (int i = 0; i < content_length; ++i)
+//    {
+//      // Alternative data collection
+//      // Store every sample in the frame, rather than just the last
+//      // This risks generating variable sample frequency, but provides more detailed data.
+//    }
+//}
 
 void run(std::ofstream& file, Serial* port)
 {
@@ -129,8 +144,7 @@ void run(std::ofstream& file, Serial* port)
         if (tmr.peek() > SAMPLE_TIME)
         {
             truncateBuffer(buffer, length);
-            saveSample(buffer, file);
-            // TODO: save sample
+            saveSample(buffer, genLabels(), file);
             tmr.mark();
         }
 
