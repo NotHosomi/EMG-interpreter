@@ -1,7 +1,7 @@
 #include "RecurrentNetwork.h"
 
 
-VectorXd RecurrentNetwork::feedforward(VectorXd input)
+VectorXd RecurrentNetwork::feedForward(VectorXd input)
 {
     VectorXd activations = L1.feedForward(input);
     activations = L2.feedForward(activations);
@@ -33,4 +33,11 @@ double RecurrentNetwork::backProp(std::vector<VectorXd> labels)
     empt.setZero();
     y_history.emplace_back(empt);
     return 0.0;
+}
+
+void RecurrentNetwork::resize(int new_depth)
+{
+    L1.resize(new_depth);
+    L2.resize(new_depth);
+    L3.resize(new_depth);
 }

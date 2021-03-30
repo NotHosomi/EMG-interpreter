@@ -11,9 +11,10 @@ class RecurrentNetwork
 	*  Dense 5
 	*/
 public:
-	VectorXd feedforward(VectorXd input);
+	VectorXd feedForward(VectorXd input);
 	double backProp(std::vector<VectorXd> labels);
 
+	void resize(int new_depth);
 	// TODO: implement net loading
 
 private:

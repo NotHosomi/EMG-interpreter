@@ -76,6 +76,7 @@ void DenseLayer::clearCaches()
 
 	// clear update buffers
 	grad.setZero(OUTPUT_SIZE);
+	delta_grad.setZero(OUTPUT_SIZE);
 }
 #pragma endregion
 
@@ -108,4 +109,12 @@ void DenseLayer::applyUpdates()
 	// apply update sums
 	// TODO use adam instead of just RMS prop
 	w += (alpha / sqrt(delta_grad.array() + 1e-8) * grad.array()).matrix();
+}
+
+void DenseLayer::resize(int new_depth)
+{
+	clearCaches();
+	new_depth++;
+	x_history.reserve(new_depth);
+	y_history.reserve(new_depth);
 }

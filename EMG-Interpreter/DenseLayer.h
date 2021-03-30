@@ -25,14 +25,14 @@ public:
 	VectorXd backProp(VectorXd gradient, unsigned int t);
 	void applyUpdates();
 
+	void resize(int new_depth);
+
 private:
 	int INPUT_SIZE; // not const, but these two should never change after construction
 	int OUTPUT_SIZE; // could const these and have loadCell() be a static that returns a new Lstm
 	int depth;
 	double alpha;
 
-
-	MatrixXd f; // forget
 	std::vector<VectorXd> x_history;
 	std::vector<VectorXd> y_history;
 	MatrixXd w;

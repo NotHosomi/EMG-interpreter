@@ -3,17 +3,17 @@
 #include <string>
 #include <vector>
 
-#include "Lstm.h"
+#include "RecurrentNetwork.h"
 
 int INPUT_SIZE = 3;
 int LABEL_SIZE = 5;
-int CELL_SIZE = 10;
 
 int main()
 {
 #pragma region BUILD NET
 
-    Lstm* lstm;
+#ifdef RNN_LOADING
+    RecurrentNetwork* rnn;
     std::string fileaddress;
     std::ifstream net_file;
     std::cout << "Cell File: ";
@@ -22,14 +22,17 @@ int main()
     if (net_file)
     {
         std::cout << "Loading 'nets/" << fileaddress << ".dat'" << std::endl;
-        lstm = new Lstm(net_file, 0.15);
+        rnn = new Lstm(net_file, 0.15);
     }
     else
     {
         std::cout << "Creating new network \"fileaddress.dat\"" << std::endl;
-        lstm = new Lstm(INPUT_SIZE, CELL_SIZE, 0.15);
+        rnn = new RecurrentNetwork(INPUT_SIZE, LABEL_SIZE, 0.15);
     }
-
+#else
+    RecurrentNetwork* rnn = new RecurrentNetwork();
+    std::string fileaddress;
+#endif
 #pragma endregion
 
 #pragma region LOAD SAMPLES
@@ -76,7 +79,7 @@ int main()
             input /= 1024.0; // 1024 is the range of the Myoware signal output
             input_sequences.back().emplace_back(input);
 
-            VectorXd label(CELL_SIZE);
+            VectorXd label(LABEL_SIZE);
             label.setZero();
             for (int i = 0; i < values.size() - INPUT_SIZE; ++i)
             {
@@ -97,19 +100,20 @@ int main()
     for (int seq = 0; seq < input_sequences.size(); ++seq)
     {
         std::cout << "Training on sequence " << std::to_string(seq) << std::endl;
-        lstm->resize(input_sequences[seq].size());
+        rnn->resize(input_sequences[seq].size());
         for (auto& input : input_sequences[seq])
         {
-            lstm->feedForward(input);
+            rnn->feedForward(input);
         }
-        double avg_err = lstm->backProp(label_sequences[seq]);
+        double avg_err = rnn->backProp(label_sequences[seq]);
         avg_err /= input_sequences[seq].size();
         std::cout << "Avg Error: " << std::to_string(avg_err) << std::endl;
     }
-    lstm->saveCell();
+    // TODO: implement network saving
+    //rnn->save();
 
 #pragma endregion
 
-    delete lstm;
+    delete rnn;
     return 0;
 }

@@ -144,11 +144,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="DenseLayer.cpp" />
     <ClCompile Include="Lstm.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="RecurrentNetwork.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="DenseLayer.h" />
     <ClInclude Include="Lstm.h" />
+    <ClInclude Include="RecurrentNetwork.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
