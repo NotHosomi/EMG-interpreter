@@ -103,6 +103,7 @@ std::string genLabels()
     s += "-";
     s += GetAsyncKeyState('J') ? "1" : "0";
     s += "!";
+    return s;
 }
 
 void saveSample(const char* inputs, const std::string& labels, std::ofstream& file)
@@ -160,25 +161,42 @@ void run(std::ofstream& file, Serial* port)
 
 int main() {
 
-
+    //
     std::string filename;
-    std::cout << "filename: ";
-
-    // Open file
     std::ofstream file;
+#ifdef PICK_FILE
     while (1)
     {
-        std::cout << "File: ";
+        std::cout << "Filename: ";
         std::cin >> filename;
-        file.open(filename + ".emg", std::ios::app);
+        file.open("data/" + filename + ".emg", std::ios::app);
         if (file)
-        {
             break;
-        }
         std::cout << "Failed to open file " << filename << ".emg" << std::endl;
     }
+#else
+    std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
+    time_t tt = std::chrono::system_clock::to_time_t(now);
+    tm time = *localtime(&tt);
+    filename = std::to_string(time.tm_year) + "-"
+        + std::to_string(time.tm_mon) + "-"
+        + std::to_string(time.tm_mday) + "_"
+        + std::to_string(time.tm_hour) + "-"
+        + std::to_string(time.tm_min) + "-"
+        + std::to_string(time.tm_sec);
+    file.open("data/" + filename + ".emg", std::ios::app);
+    if (!file)
+    {
+        std::cout << "Failed to open file " << filename << ".emg" << std::endl;
+        return 0xBAADDA7E;
+    }
+#endif
+    std::cout << "Saving to file: " << filename << ".emg" << std::endl;
 
     // Open port
+    Serial* port;
+    std::cout << "Connecting..." << std::endl;
+#ifdef PICK_COM
     std::string portname;
     Serial* port;
     while (1)
@@ -195,6 +213,15 @@ int main() {
         std::cout << "\nFailed to open " << portname << "\nPress any key to retry..." << std::endl;
         std::getchar();
     }
+#else
+    port = new Serial("\\\\.\\com5");
+    if (!port->IsConnected())
+    {
+        std::cout << "Failed to open open com5" << std::endl;
+        return 0xBAADDA7E;
+    }
+    std::cout << "Connected successfully" << std::endl;
+#endif
 
     while (1)
     {
@@ -202,11 +229,14 @@ int main() {
         Sleep(1000);
         run(file, port);
         Sleep(1000);
+        // clear input buffer
+        while ((getchar()) != '\n');
         std::cout << "\nPAUSED [Enter to continue]" << std::endl;
         if (std::getchar() != VK_RETURN)
         {
             break;
         }
+        while ((getchar()) != '\n');
     }
 
     delete port;
