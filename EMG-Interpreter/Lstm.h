@@ -11,8 +11,8 @@ using namespace Eigen;
 class Lstm
 {
 public:
-	Lstm(int input_size, int output_size, double eta);
-	Lstm(std::ifstream& file, double eta);
+	Lstm(int input_size, int output_size, double alpha);
+	Lstm(std::ifstream& file, double alpha);
 
 	// external utils
 	void resize(int new_depth);
@@ -33,14 +33,14 @@ private:
 public:
 	// primary functionality
 	VectorXd feedForward(VectorXd x_t);
-	double backProp(std::vector<VectorXd> targets);
+	VectorXd backProp(VectorXd gradient, unsigned int t);
+	void applyUpdates();
 
 private:
 	int INPUT_SIZE; // not const, but these two should never change after construction
 	int OUTPUT_SIZE; // could const these and have loadCell() be a static that returns a new Lstm
 	int depth;
-	double eta; // learning rate		// TODO make dynamic
-	double alpha; // alpha (momentum)	// TODO implement alpha
+	double alpha; // learning rate		// TODO make dynamic
 
 	// Cell IO
 	std::vector<VectorXd> x_history;
@@ -62,5 +62,13 @@ private:
 	MatrixXd Gc;
 	MatrixXd Go;
 	// TODO: gate bias (VectorXd, for each weight from the bias), or just +1 to the X vector each time maybe?
-	// TODO: circular buffers instead of deques
+
+	// intercell gradients
+	VectorXd dcs;
+	VectorXd dhs;
+	// Backprop update sums
+	MatrixXd tfu;
+	MatrixXd tiu;
+	MatrixXd tcu;
+	MatrixXd tou;
 };

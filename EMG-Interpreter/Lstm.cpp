@@ -2,8 +2,8 @@
 #include <iostream>
 #include <fstream>
 
-Lstm::Lstm(int input_size, int output_size, double eta) :
-	INPUT_SIZE(input_size), OUTPUT_SIZE(output_size), eta(eta)
+Lstm::Lstm(int input_size, int output_size, double alpha) :
+	INPUT_SIZE(input_size), OUTPUT_SIZE(output_size), alpha(alpha)
 {
 	// init W matrices for gates
 	f = MatrixXd::Random(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1); // + 1 (bias)
@@ -32,8 +32,8 @@ Lstm::Lstm(int input_size, int output_size, double eta) :
 	Go.setZero(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1);
 }
 
-Lstm::Lstm(std::ifstream& file, double eta) :
-	eta(eta)
+Lstm::Lstm(std::ifstream& file, double alpha) :
+	alpha(alpha)
 {
 	file.read(reinterpret_cast<char*>(&INPUT_SIZE), sizeof(unsigned int));
 	file.read(reinterpret_cast<char*>(&OUTPUT_SIZE), sizeof(unsigned int));
@@ -76,6 +76,14 @@ Lstm::Lstm(std::ifstream& file, double eta) :
 	Gi.setZero(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1);
 	Gc.setZero(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1);
 	Go.setZero(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1);
+
+
+	dcs.setZero(OUTPUT_SIZE);
+	dhs.setZero(OUTPUT_SIZE);
+	tfu.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1); // + 1 (bias)
+	tiu.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1); // + 1 (bias)
+	tcu.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1); // + 1 (bias)
+	tou.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1); // + 1 (bias)
 }
 
 #pragma region UTILS
@@ -144,6 +152,14 @@ void Lstm::clearCaches()
 	i_history.emplace_back(empt);
 	c_history.emplace_back(empt);
 	o_history.emplace_back(empt);
+
+	// clear update buffers
+	dcs.setZero(OUTPUT_SIZE);
+	dhs.setZero(OUTPUT_SIZE);
+	tfu.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1); // + 1 (bias)
+	tiu.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1); // + 1 (bias)
+	tcu.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1); // + 1 (bias)
+	tou.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1); // + 1 (bias)
 }
 #pragma endregion
 
@@ -180,119 +196,90 @@ VectorXd Lstm::feedForward(VectorXd x_t)
 	return hs;
 }
 
-double Lstm::backProp(std::vector<VectorXd> labels)
+VectorXd Lstm::backProp(VectorXd gradient, unsigned int t)
 {
-	// prep persistent backprop data
-	double net_error = 0.0;
-	// intercell gradients
-	VectorXd dcs;
-	VectorXd dhs;
-	dcs.setZero(OUTPUT_SIZE);
-	dhs.setZero(OUTPUT_SIZE);
-	// Backprop update sums
-	MatrixXd tfu;
-	MatrixXd tiu;
-	MatrixXd tcu;
-	MatrixXd tou;
-	tfu.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1); // + 1 (bias)
-	tiu.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1); // + 1 (bias)
-	tcu.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1); // + 1 (bias)
-	tou.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1); // + 1 (bias)
+	gradient += dhs;
 
-	// calculate the recurrence limit
-	int r_limit = labels.size() < hs_history.size() - 1 ? hs_history.size() - 1 - labels.size() : 1; // REVIEW THIS
-	// Begin backprop
-	for (int t = hs_history.size() - 1; t >= r_limit; --t)
-	{
-		VectorXd targets = labels[t-1]; // cell caches are all offset +1, t-1 here is just to counteract that
-		VectorXd error = 2 * (targets - hs_history[t]);
-		net_error += 2 * error.sum();
+	VectorXd cs = cs_history[t];													// Comment notation note: (c = cs, g = c, z = activation pre act-func)
 
+	// Find derivatives for the gates' outputs
+	VectorXd de_do = gradient.cwiseProduct(cs_history[t].unaryExpr(&tangent));										// Error * tanh(ct) 
+	VectorXd de_dcst = gradient.cwiseProduct(o_history[t].cwiseProduct(cs_history[t].unaryExpr(&dtangent))) + dcs;	// Error * o * dtan(ct)
+	VectorXd de_df;
+	//if (t > 0)
+		de_df = de_dcst.cwiseProduct(cs_history[t - 1]);														// Error * o * dtan(ct) * ct-1  
+	//else
+	//	de_df = de_dcst * 0;																					// Error * o * dtan(ct) * ct-1 (all 0 at T:0)
+	VectorXd de_di = de_dcst.cwiseProduct(c_history[t]);														// Error * o * dtan(ct) * g 
+	VectorXd de_dc = de_dcst.cwiseProduct(i_history[t]);														// Error * o * dtan(ct) * i 
+	
+	// concat the inputs at timestep T
+	VectorXd in(INPUT_SIZE + OUTPUT_SIZE + 1); // + 1 (bias)
+	//if (t > 0)
+		in << hs_history[t-1], x_history[t], 1; //, 1 (bias)
+	//else
+	//{
+	//	VectorXd empt(OUTPUT_SIZE);
+	//	empt.setZero();
+	//	in << empt, x_history[t];
+	//}
 
+	// +--- element-wise gradient ---+
+	// de_db = dsig(z) * error
+	// de_dw = input * dsig(z) * error
+	// de_dx = SUM_j( weight_j * dsig(z) * error )
 
-		// TODO: add an output net here
+	// refer to the G4G article for specific formula
 
+	// Find derivatives for the gates' weights
+	VectorXd de_dbo = (o * in).unaryExpr(&dsigmoid).cwiseProduct(de_do);
+	MatrixXd de_dwo = de_dbo * in.transpose();
 
+	VectorXd de_dbf = (f * in).unaryExpr(&dsigmoid).cwiseProduct(de_df);
+	MatrixXd de_dwf = de_dbf * in.transpose();
 
-		error += dhs;
+	VectorXd de_dbi = (i * in).unaryExpr(&dsigmoid).cwiseProduct(de_di);
+	MatrixXd de_dwi = de_dbi * in.transpose();
 
-		VectorXd cs = cs_history[t];													// Comment notation note: (c = cs, g = c, z = activation pre act-func)
+	VectorXd de_dbc = (c * in).unaryExpr(&dtangent).cwiseProduct(de_dc);
+	MatrixXd de_dwc = de_dbc * in.transpose();
 
-		// Find derivatives for the gates' outputs
-		VectorXd de_do = error.cwiseProduct(cs_history[t].unaryExpr(&tangent));										// Error * tanh(ct) 
-		VectorXd de_dcst = error.cwiseProduct(o_history[t].cwiseProduct(cs_history[t].unaryExpr(&dtangent))) + dcs;	// Error * o * dtan(ct)
-		VectorXd de_df;
-		//if (t > 0)
-			de_df = de_dcst.cwiseProduct(cs_history[t - 1]);														// Error * o * dtan(ct) * ct-1  
-		//else
-		//	de_df = de_dcst * 0;																					// Error * o * dtan(ct) * ct-1 (all 0 at T:0)
-		VectorXd de_di = de_dcst.cwiseProduct(c_history[t]);														// Error * o * dtan(ct) * g 
-		VectorXd de_dc = de_dcst.cwiseProduct(i_history[t]);														// Error * o * dtan(ct) * i 
-		
-		// concat the inputs at timestep T
-		VectorXd in(INPUT_SIZE + OUTPUT_SIZE + 1); // + 1 (bias)
-		//if (t > 0)
-			in << hs_history[t-1], x_history[t], 1; //, 1 (bias)
-		//else
-		//{
-		//	VectorXd empt(OUTPUT_SIZE);
-		//	empt.setZero();
-		//	in << empt, x_history[t];
-		//}
+	// build net updates from the gradients
+	tfu += de_dwf;
+	tiu += de_dwi;
+	tcu += de_dwc;
+	tou += de_dwo;
+	
+	// gradients for previous cell
+	dcs = de_dcst.cwiseProduct(f_history[t]);
+	dhs = o.block(0, 0, OUTPUT_SIZE, OUTPUT_SIZE).transpose() * de_dbo + // https://eigen.tuxfamily.org/dox/group__TutorialMatrixArithmetic.html#title5
+		f.block(0, 0, OUTPUT_SIZE, OUTPUT_SIZE).transpose() * de_dbf +
+		i.block(0, 0, OUTPUT_SIZE, OUTPUT_SIZE).transpose() * de_dbi +
+		c.block(0, 0, OUTPUT_SIZE, OUTPUT_SIZE).transpose() * de_dbc;
+	// return input gradients
+	return o.block(0, OUTPUT_SIZE, OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE).transpose() * de_dbo +
+		f.block(0, OUTPUT_SIZE, OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE).transpose() * de_dbf +
+		i.block(0, OUTPUT_SIZE, OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE).transpose() * de_dbi +
+		c.block(0, OUTPUT_SIZE, OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE).transpose() * de_dbc;
+}
 
-		// +--- element-wise gradient ---+
-		// de_db = dsig(z) * error
-		// de_dw = input * dsig(z) * error
-		// de_dx = SUM_j( weight_j * dsig(z) * error )
-
-		// refer to the G4G article for specific formula
-
-		// Find derivatives for the gates' weights
-		VectorXd de_dbo = (o * in).unaryExpr(&dsigmoid).cwiseProduct(de_do);
-		MatrixXd de_dwo = de_dbo * in.transpose();
-
-		VectorXd de_dbf = (f * in).unaryExpr(&dsigmoid).cwiseProduct(de_df);
-		MatrixXd de_dwf = de_dbf * in.transpose();
-
-		VectorXd de_dbi = (i * in).unaryExpr(&dsigmoid).cwiseProduct(de_di);
-		MatrixXd de_dwi = de_dbi * in.transpose();
-
-		VectorXd de_dbc = (c * in).unaryExpr(&dtangent).cwiseProduct(de_dc);
-		MatrixXd de_dwc = de_dbc * in.transpose();
-
-		// build net updates from the gradients
-		tfu += de_dwf;
-		tiu += de_dwi;
-		tcu += de_dwc;
-		tou += de_dwo;
-		
-		// gradients for previous cell
-		dcs = de_dcst.cwiseProduct(f_history[t]);
-		dhs = o.block(0, 0, OUTPUT_SIZE, OUTPUT_SIZE).transpose() * de_dbo + // https://eigen.tuxfamily.org/dox/group__TutorialMatrixArithmetic.html#title5
-			f.block(0, 0, OUTPUT_SIZE, OUTPUT_SIZE).transpose() * de_dbf +
-			i.block(0, 0, OUTPUT_SIZE, OUTPUT_SIZE).transpose() * de_dbi +
-			c.block(0, 0, OUTPUT_SIZE, OUTPUT_SIZE).transpose() * de_dbc;
-	}
-
+void Lstm::applyUpdates()
+{
 	// update the gradients
-	// TODO fix the momentum formula
-	// other method: eta * gradient + alpha * prev_gradient
-	// this method: 0.9 * prev_grad + 0.1 * gradient^2
-	Gf = 0.9 * Gf + 0.1 * tfu.cwiseProduct(tfu);
-	Gi = 0.9 * Gi + 0.1 * tiu.cwiseProduct(tiu);
-	Gc = 0.9 * Gc + 0.1 * tcu.cwiseProduct(tcu);
-	Go = 0.9 * Go + 0.1 * tou.cwiseProduct(tou);
+	Gf = 0.99 * Gf + 0.01 * tfu.cwiseProduct(tfu); // Vdw = Beta * Vdw + (1 - Beta) * dw
+	Gi = 0.99 * Gi + 0.01 * tiu.cwiseProduct(tiu);
+	Gc = 0.99 * Gc + 0.01 * tcu.cwiseProduct(tcu);
+	Go = 0.99 * Go + 0.01 * tou.cwiseProduct(tou);
 
 	// apply update sums
-	f += (eta / sqrt(Gf.array() + 1e-8) * tfu.array()).matrix();
-	i += (eta / sqrt(Gi.array() + 1e-8) * tiu.array()).matrix();
-	c += (eta / sqrt(Gc.array() + 1e-8) * tcu.array()).matrix();
-	o += (eta / sqrt(Go.array() + 1e-8) * tou.array()).matrix();
+	// TODO use adam instead of just RMS prop
+	f += (alpha / sqrt(Gf.array() + 1e-8) * tfu.array()).matrix();
+	i += (alpha / sqrt(Gi.array() + 1e-8) * tiu.array()).matrix();
+	c += (alpha / sqrt(Gc.array() + 1e-8) * tcu.array()).matrix();
+	o += (alpha / sqrt(Go.array() + 1e-8) * tou.array()).matrix();
 
 	// clear update buffers
 	clearCaches();
-
-	return net_error;
 }
 
 void Lstm::printGates()
