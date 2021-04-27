@@ -9,10 +9,13 @@ int INPUT_SIZE = 3;
 int LABEL_SIZE = 5;
 int CELL_SIZE = 10;
 
+#define _NO_CELL_LOADING
+
 int main()
 {
 #pragma region BUILD NET
 
+#ifndef _NO_CELL_LOADING
     Lstm* lstm;
     std::string fileaddress;
     std::ifstream net_file;
@@ -29,6 +32,10 @@ int main()
         std::cout << "Creating new network \"fileaddress.dat\"" << std::endl;
         lstm = new Lstm(INPUT_SIZE, CELL_SIZE, 0.15);
     }
+#else
+    Lstm* lstm = new Lstm(INPUT_SIZE, CELL_SIZE, 0.15);
+    std::string fileaddress;
+#endif
 
 #pragma endregion
 
@@ -65,7 +72,18 @@ int main()
             std::stringstream samplestream(sample);
             while (getline(samplestream, value, '-'))
             {
-                values.emplace_back(std::stoi(value));
+                try
+                {
+                    values.emplace_back(std::stoi(value));
+                }
+                catch (...)
+                {
+                    std::cout << "BAD SAMPLE: \"" << sample << "\"" << std::endl;
+                    values.clear();
+                    // TODO: Do I need to pop back of input/label sequences
+                    // Yes yes, I know GOTO is bad, but its the cleanest way to escape nested loops
+                    goto panic;
+                }
             }
 
             VectorXd input(INPUT_SIZE);
@@ -86,6 +104,8 @@ int main()
 
             values.clear();
         }
+        // Bad sample jump point
+        panic:;
     }
     data_file.close();
     std::cout << "Signal data mounted" << std::endl;
@@ -93,20 +113,34 @@ int main()
 #pragma endregion
 
 #pragma region TRAIN NET
-
-    for (int seq = 0; seq < input_sequences.size(); ++seq)
+    for (int epoch = 0; epoch < 10; ++epoch)
     {
-        std::cout << "Training on sequence " << std::to_string(seq) << std::endl;
-        lstm->resize(input_sequences[seq].size());
-        for (auto& input : input_sequences[seq])
+        std::cout << "Epoch:\t" << epoch << std::endl;
+        double net_error = 0;
+        double smoothed_error = 0;
+        const double smoothing = 0.3;
+        for (int seq = 0; seq < input_sequences.size(); ++seq)
         {
-            lstm->feedForward(input);
+            //std::cout << "Training on sequence " << std::to_string(seq) << std::endl;
+
+            lstm->resize(input_sequences[seq].size());
+            for (auto& input : input_sequences[seq])
+            {
+                lstm->feedForward(input);
+            }
+            double avg_err = lstm->backProp(label_sequences[seq]);
+            avg_err /= input_sequences[seq].size();
+
+            std::cout << "Last Error:\t" << std::to_string(avg_err) << std::endl;
+            //smoothed_error = (smoothed_error * smoothing + avg_err) / (smoothing + 1);
+            //std::cout << "Smoothed Error:\t" << std::to_string(smoothed_error) << std::endl;
+            net_error += avg_err;
         }
-        double avg_err = lstm->backProp(label_sequences[seq]);
-        avg_err /= input_sequences[seq].size();
-        std::cout << "Avg Error: " << std::to_string(avg_err) << std::endl;
+        net_error /= input_sequences.size();
+        std::cout << "Error:\t" << std::to_string(net_error) << std::endl;
     }
-    lstm->saveCell();
+
+    //lstm->saveCell();
 
 #pragma endregion
 

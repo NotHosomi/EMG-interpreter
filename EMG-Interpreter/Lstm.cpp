@@ -206,7 +206,7 @@ double Lstm::backProp(std::vector<VectorXd> labels)
 	{
 		VectorXd targets = labels[t-1]; // cell caches are all offset +1, t-1 here is just to counteract that
 		VectorXd error = 2 * (targets - hs_history[t]);
-		net_error += 2 * error.sum();
+		net_error += 2 * std::abs(error.sum() / error.size());
 
 
 
