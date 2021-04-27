@@ -177,7 +177,8 @@ int main() {
 #else
     std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
     time_t tt = std::chrono::system_clock::to_time_t(now);
-    tm time = *localtime(&tt);
+    tm time;
+    localtime_s(&time, &tt);
     filename = std::to_string(time.tm_year) + "-"
         + std::to_string(time.tm_mon) + "-"
         + std::to_string(time.tm_mday) + "_"
@@ -223,21 +224,20 @@ int main() {
     std::cout << "Connected successfully" << std::endl;
 #endif
 
-    while (1)
+    std::string cmd = "";
+    do
     {
         printf("Recording new sequence...\n");
         Sleep(1000);
         run(file, port);
         Sleep(1000);
         // clear input buffer
-        while ((getchar()) != '\n');
-        std::cout << "\nPAUSED [Enter to continue]" << std::endl;
-        if (std::getchar() != VK_RETURN)
+        std::cout << "\nPAUSED [cont/exit]" << std::endl;
+        do
         {
-            break;
-        }
-        while ((getchar()) != '\n');
-    }
+            std::cin >> cmd;
+        } while (cmd != "cont" && cmd != "exit");
+    } while (cmd != "exit");
 
     delete port;
     file.close();
