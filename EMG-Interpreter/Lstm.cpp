@@ -250,10 +250,10 @@ VectorXd Lstm::backProp(VectorXd gradient, unsigned int t)
 		i.block(0, 0, OUTPUT_SIZE, OUTPUT_SIZE).transpose() * de_dbi +
 		c.block(0, 0, OUTPUT_SIZE, OUTPUT_SIZE).transpose() * de_dbc;
 	// return input gradients
-	return o.block(0, OUTPUT_SIZE, OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE).transpose() * de_dbo +
-		f.block(0, OUTPUT_SIZE, OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE).transpose() * de_dbf +
-		i.block(0, OUTPUT_SIZE, OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE).transpose() * de_dbi +
-		c.block(0, OUTPUT_SIZE, OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE).transpose() * de_dbc;
+	return o.block(0, OUTPUT_SIZE, OUTPUT_SIZE, INPUT_SIZE).transpose() * de_dbo +
+		f.block(0, OUTPUT_SIZE, OUTPUT_SIZE, INPUT_SIZE).transpose() * de_dbf +
+		i.block(0, OUTPUT_SIZE, OUTPUT_SIZE, INPUT_SIZE).transpose() * de_dbi +
+		c.block(0, OUTPUT_SIZE, OUTPUT_SIZE, INPUT_SIZE).transpose() * de_dbc;
 }
 
 void Lstm::applyUpdates()

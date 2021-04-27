@@ -98,7 +98,7 @@ VectorXd DenseLayer::backProp(VectorXd gradient, unsigned int t)
 	MatrixXd de_dw = de_db * x_history[t].transpose();
 
 	grad += de_dw;
-	return w.block(0, 0, INPUT_SIZE, INPUT_SIZE).transpose() * de_db;
+	return w.block(0, 0, OUTPUT_SIZE, INPUT_SIZE).transpose() * de_db;
 }
 
 void DenseLayer::applyUpdates()
