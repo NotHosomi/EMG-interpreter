@@ -8,7 +8,7 @@ using namespace Eigen;
 class DenseLayer
 {
 public:
-	DenseLayer(int input_size, int output_size, double eta);
+	DenseLayer(int input_size, int output_size, double alpha);
 
 private:
 	// internal utils

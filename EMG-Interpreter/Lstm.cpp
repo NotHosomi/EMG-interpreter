@@ -45,13 +45,6 @@ Lstm::Lstm(std::ifstream& file, double alpha) :
 
 	std::for_each(f.data(), f.data() + f.size(), [&file](double& val)
 		{ file.read(reinterpret_cast<char*>(&val), sizeof(double)); });
-	// incase the above doesn't work:
-	//std::for_each(f.data(), f.data() + f.size(), [&file](double& val)
-	//	{
-	//		double temp;
-	//		file.read(reinterpret_cast<char*>(&temp), sizeof(double));
-	//		val = temp;
-	//	});
 	std::for_each(i.data(), i.data() + i.size(), [&file](double& val)
 		{ file.read(reinterpret_cast<char*>(&val), sizeof(double)); });
 	std::for_each(c.data(), c.data() + c.size(), [&file](double& val)

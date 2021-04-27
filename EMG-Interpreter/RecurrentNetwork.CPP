@@ -13,11 +13,11 @@ VectorXd RecurrentNetwork::feedForward(VectorXd input)
 double RecurrentNetwork::backProp(std::vector<VectorXd> labels)
 {
     double net_cost = 0.0;
-    
-    int r_limit = labels.size() < y_history.size() - 1 ? y_history.size() - 1 - labels.size() : 1;
-    for (int t = y_history.size(); t >= r_limit; --t)
+
+    int r_limit = labels.size() < y_history.size() - 1 ? y_history.size() - labels.size() : 1;
+    for (int t = labels.size()-1; t >= r_limit; --t)
     {
-        VectorXd grad = 2 * (labels[t] - y_history[t]);
+        VectorXd grad = 2 * (labels[t] - y_history[t]); // TODO: switch to sigmoid cross-entropy
         net_cost += 2 * grad.sum() / grad.size();
         grad = L3.backProp(grad, t);
         grad = L2.backProp(grad, t);
@@ -32,7 +32,7 @@ double RecurrentNetwork::backProp(std::vector<VectorXd> labels)
     VectorXd empt = VectorXd(OUTPUT_SIZE);
     empt.setZero();
     y_history.emplace_back(empt);
-    return 0.0;
+    return std::abs(net_cost) / (labels.size() - r_limit);
 }
 
 void RecurrentNetwork::resize(int new_depth)

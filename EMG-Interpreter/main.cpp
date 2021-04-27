@@ -5,8 +5,8 @@
 
 #include "RecurrentNetwork.h"
 
-int INPUT_SIZE = 3;
-int LABEL_SIZE = 5;
+#define INPUT_SIZE 3
+#define LABEL_SIZE 5
 
 int main()
 {

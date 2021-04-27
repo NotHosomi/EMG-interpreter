@@ -1,4 +1,5 @@
 #include "DenseLayer.h"
+#include <assert.h>
 
 DenseLayer::DenseLayer(int input_size, int output_size, double alpha) :
 	INPUT_SIZE(input_size), OUTPUT_SIZE(output_size), alpha(alpha)
@@ -75,8 +76,8 @@ void DenseLayer::clearCaches()
 	y_history.emplace_back(empt);
 
 	// clear update buffers
-	grad.setZero(OUTPUT_SIZE);
-	delta_grad.setZero(OUTPUT_SIZE);
+	grad.setZero(OUTPUT_SIZE, INPUT_SIZE + 1);
+	delta_grad.setZero(OUTPUT_SIZE, INPUT_SIZE + 1);
 }
 #pragma endregion
 
