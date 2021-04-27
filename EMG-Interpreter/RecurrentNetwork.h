@@ -11,12 +11,15 @@ class RecurrentNetwork
 	*  Dense 5
 	*/
 public:
+	double train(std::vector<VectorXd> inputs, std::vector<VectorXd> labels);
 	VectorXd feedForward(VectorXd input);
 	double backProp(std::vector<VectorXd> labels);
 
 	void resize(int new_depth);
 	// TODO: implement net loading
 
+	void save(std::string net_name);
+	void load(std::string net_name);
 private:
 	int INPUT_SIZE = 3;
 	int OUTPUT_SIZE = 5;

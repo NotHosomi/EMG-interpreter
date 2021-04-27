@@ -99,14 +99,8 @@ int main()
 
     for (int seq = 0; seq < input_sequences.size(); ++seq)
     {
-        std::cout << "Training on sequence " << std::to_string(seq) << std::endl;
-        rnn->resize(input_sequences[seq].size());
-        for (auto& input : input_sequences[seq])
-        {
-            rnn->feedForward(input);
-        }
-        double avg_err = rnn->backProp(label_sequences[seq]);
-        avg_err /= input_sequences[seq].size();
+        std::cout << "Training on sequence " << std::to_string(seq) << " - size: " << input_sequences[seq].size() << std::endl;
+        double avg_err = rnn->train(input_sequences[seq], label_sequences[seq]);
         std::cout << "Avg Error: " << std::to_string(avg_err) << std::endl;
     }
     // TODO: implement network saving

@@ -1,6 +1,16 @@
 #include "RecurrentNetwork.h"
 
 
+double RecurrentNetwork::train(std::vector<VectorXd> inputs, std::vector<VectorXd> labels)
+{
+    resize(inputs.size());
+    for (auto& input : inputs)
+    {
+        feedForward(input);
+    }
+    return backProp(labels);
+}
+
 VectorXd RecurrentNetwork::feedForward(VectorXd input)
 {
     VectorXd activations = L1.feedForward(input);
