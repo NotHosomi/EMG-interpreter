@@ -68,7 +68,18 @@ int main()
             std::stringstream samplestream(sample);
             while (getline(samplestream, value, '-'))
             {
-                values.emplace_back(std::stoi(value));
+                try
+                {
+                    values.emplace_back(std::stoi(value));
+                }
+                catch (...)
+                {
+                    std::cout << "BAD SAMPLE: \"" << sample << "\"" << std::endl;
+                    values.clear();
+                    // TODO: Do I need to pop back of input/label sequences
+                    // Yes yes, I know GOTO is bad, but its the cleanest way to escape nested loops
+                    goto panic;
+                }
             }
 
             VectorXd input(INPUT_SIZE);
@@ -89,6 +100,8 @@ int main()
 
             values.clear();
         }
+        // Bad sample jump point
+    panic: ;
     }
     data_file.close();
     std::cout << "Signal data mounted" << std::endl;
@@ -97,12 +110,35 @@ int main()
 
 #pragma region TRAIN NET
 
+    for (int epoch = 0; epoch < 10; ++epoch)
+    {
+        std::cout << "Epoch:\t" << epoch << std::endl;
+        double net_error = 0;
+        double smoothed_error = 0;
+        const double smoothing = 0.3;
+        for (int seq = 0; seq < input_sequences.size(); ++seq)
+        {
+            //std::cout << "Training on sequence " << std::to_string(seq) << " - size: " << input_sequences[seq].size() << std::endl;
+            double avg_err = rnn->train(input_sequences[seq], label_sequences[seq]);
+            //std::cout << "Last Error:\t" << std::to_string(avg_err) << std::endl;
+            smoothed_error = (smoothed_error * smoothing + avg_err) / (smoothing + 1);
+            //std::cout << "Smoothed Error:\t" << std::to_string(smoothed_error) << std::endl;
+            net_error += avg_err;
+        }
+        net_error /= input_sequences.size();
+        std::cout << "Error:\t" << std::to_string(net_error) << std::endl;
+    }
+
+    std::cout << "Eval" << std::endl;
+    double net_error = 0;
     for (int seq = 0; seq < input_sequences.size(); ++seq)
     {
-        std::cout << "Training on sequence " << std::to_string(seq) << " - size: " << input_sequences[seq].size() << std::endl;
-        double avg_err = rnn->train(input_sequences[seq], label_sequences[seq]);
-        std::cout << "Avg Error: " << std::to_string(avg_err) << std::endl;
+        //std::cout << "Training on sequence " << std::to_string(seq) << " - size: " << input_sequences[seq].size() << std::endl;
+        double avg_err = rnn->train_x(input_sequences[seq], label_sequences[seq]);
+        net_error += avg_err;
     }
+    net_error /= input_sequences.size();
+    std::cout << "Error:\t" << std::to_string(net_error) << std::endl;
     // TODO: implement network saving
     //rnn->save();
 

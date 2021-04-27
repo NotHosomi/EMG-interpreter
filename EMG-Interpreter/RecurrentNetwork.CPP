@@ -1,5 +1,5 @@
 #include "RecurrentNetwork.h"
-
+#include <iostream>
 
 double RecurrentNetwork::train(std::vector<VectorXd> inputs, std::vector<VectorXd> labels)
 {
@@ -7,6 +7,21 @@ double RecurrentNetwork::train(std::vector<VectorXd> inputs, std::vector<VectorX
     for (auto& input : inputs)
     {
         feedForward(input);
+    }
+    return backProp(labels);
+}
+
+double RecurrentNetwork::train_x(std::vector<VectorXd> inputs, std::vector<VectorXd> labels)
+{
+    resize(inputs.size());
+    for (int i = 0; i < inputs.size(); ++i)
+    {
+        VectorXd outputs = feedForward(inputs[i]);
+        for (int j = 0; j < labels.back().size(); ++j)
+        {
+            std::cout << std::to_string(outputs[i]) << "\t" << labels[i][j] << "\n";
+        }
+        std::cout << std::endl;
     }
     return backProp(labels);
 }

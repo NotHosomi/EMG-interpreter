@@ -12,6 +12,7 @@ class RecurrentNetwork
 	*/
 public:
 	double train(std::vector<VectorXd> inputs, std::vector<VectorXd> labels);
+	double train_x(std::vector<VectorXd> inputs, std::vector<VectorXd> labels);
 	VectorXd feedForward(VectorXd input);
 	double backProp(std::vector<VectorXd> labels);
 
