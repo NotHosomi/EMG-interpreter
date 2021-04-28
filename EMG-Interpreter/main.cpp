@@ -3,17 +3,17 @@
 #include <string>
 #include <vector>
 
-#include "Lstm.h"
+#include "RecurrentNetwork.h"
 
-int INPUT_SIZE = 3;
-int LABEL_SIZE = 5;
-int CELL_SIZE = 10;
+#define INPUT_SIZE 3
+#define LABEL_SIZE 5
 
 int main()
 {
 #pragma region BUILD NET
 
-    Lstm* lstm;
+#ifdef RNN_LOADING
+    RecurrentNetwork* rnn;
     std::string fileaddress;
     std::ifstream net_file;
     std::cout << "Cell File: ";
@@ -22,14 +22,17 @@ int main()
     if (net_file)
     {
         std::cout << "Loading 'nets/" << fileaddress << ".dat'" << std::endl;
-        lstm = new Lstm(net_file, 0.15);
+        rnn = new Lstm(net_file, 0.15);
     }
     else
     {
         std::cout << "Creating new network \"fileaddress.dat\"" << std::endl;
-        lstm = new Lstm(INPUT_SIZE, CELL_SIZE, 0.15);
+        rnn = new RecurrentNetwork(INPUT_SIZE, LABEL_SIZE, 0.15);
     }
-
+#else
+    RecurrentNetwork* rnn = new RecurrentNetwork();
+    std::string fileaddress;
+#endif
 #pragma endregion
 
 #pragma region LOAD SAMPLES
@@ -65,7 +68,18 @@ int main()
             std::stringstream samplestream(sample);
             while (getline(samplestream, value, '-'))
             {
-                values.emplace_back(std::stoi(value));
+                try
+                {
+                    values.emplace_back(std::stoi(value));
+                }
+                catch (...)
+                {
+                    std::cout << "BAD SAMPLE: \"" << sample << "\"" << std::endl;
+                    values.clear();
+                    // TODO: Do I need to pop back of input/label sequences
+                    // Yes yes, I know GOTO is bad, but its the cleanest way to escape nested loops
+                    goto panic;
+                }
             }
 
             VectorXd input(INPUT_SIZE);
@@ -76,7 +90,7 @@ int main()
             input /= 1024.0; // 1024 is the range of the Myoware signal output
             input_sequences.back().emplace_back(input);
 
-            VectorXd label(CELL_SIZE);
+            VectorXd label(LABEL_SIZE);
             label.setZero();
             for (int i = 0; i < values.size() - INPUT_SIZE; ++i)
             {
@@ -86,6 +100,8 @@ int main()
 
             values.clear();
         }
+        // Bad sample jump point
+    panic: ;
     }
     data_file.close();
     std::cout << "Signal data mounted" << std::endl;
@@ -94,22 +110,40 @@ int main()
 
 #pragma region TRAIN NET
 
+    for (int epoch = 0; epoch < 10; ++epoch)
+    {
+        std::cout << "Epoch:\t" << epoch << std::endl;
+        double net_error = 0;
+        double smoothed_error = 0;
+        const double smoothing = 0.3;
+        for (int seq = 0; seq < input_sequences.size(); ++seq)
+        {
+            //std::cout << "Training on sequence " << std::to_string(seq) << " - size: " << input_sequences[seq].size() << std::endl;
+            double avg_err = rnn->train(input_sequences[seq], label_sequences[seq]);
+            //std::cout << "Last Error:\t" << std::to_string(avg_err) << std::endl;
+            smoothed_error = (smoothed_error * smoothing + avg_err) / (smoothing + 1);
+            //std::cout << "Smoothed Error:\t" << std::to_string(smoothed_error) << std::endl;
+            net_error += avg_err;
+        }
+        net_error /= input_sequences.size();
+        std::cout << "Error:\t" << std::to_string(net_error) << std::endl;
+    }
+
+    std::cout << "Eval" << std::endl;
+    double net_error = 0;
     for (int seq = 0; seq < input_sequences.size(); ++seq)
     {
-        std::cout << "Training on sequence " << std::to_string(seq) << std::endl;
-        lstm->resize(input_sequences[seq].size());
-        for (auto& input : input_sequences[seq])
-        {
-            lstm->feedForward(input);
-        }
-        double avg_err = lstm->backProp(label_sequences[seq]);
-        avg_err /= input_sequences[seq].size();
-        std::cout << "Avg Error: " << std::to_string(avg_err) << std::endl;
+        //std::cout << "Training on sequence " << std::to_string(seq) << " - size: " << input_sequences[seq].size() << std::endl;
+        double avg_err = rnn->train_x(input_sequences[seq], label_sequences[seq]);
+        net_error += avg_err;
     }
-    lstm->saveCell();
+    net_error /= input_sequences.size();
+    std::cout << "Error:\t" << std::to_string(net_error) << std::endl;
+    // TODO: implement network saving
+    //rnn->save();
 
 #pragma endregion
 
-    delete lstm;
+    delete rnn;
     return 0;
 }
