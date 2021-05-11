@@ -41,7 +41,7 @@ double RecurrentNetwork::eval(std::vector<VectorXd> inputs, std::vector<VectorXd
 VectorXd RecurrentNetwork::feedForward(VectorXd input)
 {
     VectorXd activations = L1.feedForward(input);
-    activations = L2.feedForward(activations);
+    //activations = L2.feedForward(activations);
     activations = L3.feedForward(activations);
     y_history.emplace_back(activations);
     return activations;
@@ -57,12 +57,12 @@ double RecurrentNetwork::backProp(std::vector<VectorXd> labels)
         VectorXd grad = dloss(labels[t], y_history[t]);
         net_cost += 2 * grad.sum() / grad.size();
         grad = L3.backProp(grad, t);
-        grad = L2.backProp(grad, t);
+        //grad = L2.backProp(grad, t);
         L1.backProp(grad, t);
     }
 
     L1.applyUpdates();
-    L2.applyUpdates();
+    //L2.applyUpdates();
     L3.applyUpdates();
 
     y_history.clear();
@@ -75,7 +75,7 @@ double RecurrentNetwork::backProp(std::vector<VectorXd> labels)
 void RecurrentNetwork::resize(int new_depth)
 {
     L1.resize(new_depth);
-    L2.resize(new_depth);
+    //L2.resize(new_depth);
     L3.resize(new_depth);
 }
 

@@ -25,14 +25,21 @@ public:
 private:
 	VectorXd loss(VectorXd outputs, VectorXd targets);
 	VectorXd dloss(VectorXd outputs, VectorXd targets);
+	//int INPUT_SIZE = 3;
+	//int OUTPUT_SIZE = 5;
 	int depth;
 
 	// TODO: refine Alphas
 	// TODO: make topology more dynamic
-	Lstm L1 = Lstm(3, 16, 0.15);
-	Lstm L2 = Lstm(16, 16, 0.15);
-	DenseLayer L3 = DenseLayer(16, 5, 0.15);
+	//Lstm L1 = Lstm(3, 16, 0.15);
+	//Lstm L2 = Lstm(16, 16, 0.15);
+	//DenseLayer L3 = DenseLayer(16, 5, 0.15);
 	
 	std::vector<VectorXd> y_history;
+
+	int INPUT_SIZE = 1;
+	int OUTPUT_SIZE = 3;
+	Lstm L1 = Lstm(1, 5, 0.15);
+	DenseLayer L3 = DenseLayer(5, 3, 0.15);
 };
 
