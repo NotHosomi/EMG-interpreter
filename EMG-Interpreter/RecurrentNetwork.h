@@ -11,8 +11,9 @@ class RecurrentNetwork
 	*  Dense 5
 	*/
 public:
-	double train(std::vector<VectorXd> inputs, std::vector<VectorXd> labels);
-	double train_x(std::vector<VectorXd> inputs, std::vector<VectorXd> labels);
+	void train(std::vector<VectorXd> inputs, std::vector<VectorXd> labels);
+	double trainEx(std::vector<VectorXd> inputs, std::vector<VectorXd> labels);
+	double eval(std::vector<VectorXd> inputs, std::vector<VectorXd> labels);
 	VectorXd feedForward(VectorXd input);
 	double backProp(std::vector<VectorXd> labels);
 
@@ -22,8 +23,8 @@ public:
 	void save(std::string net_name);
 	void load(std::string net_name);
 private:
-	int INPUT_SIZE = 3;
-	int OUTPUT_SIZE = 5;
+	VectorXd loss(VectorXd outputs, VectorXd targets);
+	VectorXd dloss(VectorXd outputs, VectorXd targets);
 	int depth;
 
 	// TODO: refine Alphas

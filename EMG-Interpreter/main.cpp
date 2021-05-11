@@ -108,6 +108,26 @@ int main()
 
 #pragma endregion
 
+#pragma region BEGIN LOG
+
+    std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
+    time_t tt = std::chrono::system_clock::to_time_t(now);
+    tm time;
+    localtime_s(&time, &tt);
+    std::string filename = std::to_string(time.tm_year) + "-"
+        + std::to_string(time.tm_mon) + "-"
+        + std::to_string(time.tm_mday) + "_"
+        + std::to_string(time.tm_hour) + "-"
+        + std::to_string(time.tm_min) + "-"
+        + std::to_string(time.tm_sec);
+    std::ofstream log("logs/" + filename + ".txt", std::ios::app);
+    if (!log)
+    {
+        std::cout << "Failed to open file " << filename << ".emg" << std::endl;
+        return 0xBAADDA7E;
+    }
+#pragma endregion
+
 #pragma region TRAIN NET
 
     for (int epoch = 0; epoch < 10; ++epoch)
@@ -127,7 +147,7 @@ int main()
         }
         net_error /= input_sequences.size();
         std::cout << "Error:\t" << std::to_string(net_error) << std::endl;
-    }
+        log << std::to_string(net_error) << " ";
 
     std::cout << "Eval" << std::endl;
     double net_error = 0;
@@ -144,6 +164,7 @@ int main()
 
 #pragma endregion
 
+    log.close();
     delete rnn;
     return 0;
 }
