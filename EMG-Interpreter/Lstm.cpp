@@ -30,6 +30,14 @@ Lstm::Lstm(int input_size, int output_size, double alpha) :
 	Gi.setZero(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1);
 	Gc.setZero(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1);
 	Go.setZero(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1);
+
+
+	dcs.setZero(OUTPUT_SIZE);
+	dhs.setZero(OUTPUT_SIZE);
+	tfu.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1); // + 1 (bias)
+	tiu.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1); // + 1 (bias)
+	tcu.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1); // + 1 (bias)
+	tou.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1); // + 1 (bias)
 }
 
 Lstm::Lstm(std::ifstream& file, double alpha) :

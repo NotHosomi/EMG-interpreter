@@ -19,6 +19,7 @@ private:
 	static double m_clamp(double x);
 	static double reciprocal(double x);
 	void clearCaches();
+	static MatrixXd mtable(VectorXd rows, RowVectorXd cols);
 
 public:
 	VectorXd feedForward(VectorXd x_t);
@@ -28,8 +29,8 @@ public:
 	void resize(int new_depth);
 
 private:
-	int INPUT_SIZE; // not const, but these two should never change after construction
-	int OUTPUT_SIZE; // could const these and have loadCell() be a static that returns a new Lstm
+	int INPUT_SIZE;
+	int OUTPUT_SIZE;
 	int depth;
 	double alpha;
 

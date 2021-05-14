@@ -3,14 +3,17 @@
 #include <string>
 #include <vector>
 #include <chrono>
+#include "UnitTests.h"
 
 #include "RecurrentNetwork.h"
+#include "DeepNetwork.h"
 
 #define INPUT_SIZE 3
 #define LABEL_SIZE 5
 
 int main()
 {
+#if 1
 #pragma region BUILD NET
 
 #ifdef RNN_LOADING
@@ -103,109 +106,19 @@ int main()
             values.clear();
         }
         // Bad sample jump point
-    panic: ;
+    panic:;
     }
     data_file.close();
     std::cout << "Signal data mounted" << std::endl;
 #else
-    std::vector<std::vector<VectorXd>> input_sequences;
-    std::vector<std::vector<VectorXd>> label_sequences;
-    std::vector<std::vector<VectorXd>> eval_input_sequences;
-    std::vector<std::vector<VectorXd>> eval_label_sequences;
-    for (int i = 0; i < 100; ++i)
-    {
-        input_sequences.emplace_back(std::vector<VectorXd>());
-        label_sequences.emplace_back(std::vector<VectorXd>());
-        // ruleset
-        // pie, burger, chicken
-        // sunny, rainy
-        // if sunny
-        //   same as yesterday
-        // if rainy
-        //   if pie
-        //     burger
-        //   if burger
-        //     chicken
-        //   if chicken
-        //     pie
-        input_sequences.back().emplace_back(VectorXd(1));
-        input_sequences.back().back().setZero();
-        label_sequences.back().emplace_back(VectorXd(3));
-        label_sequences.back().back().setZero();
-        label_sequences.back().back()[0] = rand() % 3;
-        for (int j = 0; j < 30; ++j)
-        {
-            float x = rand() % 2;
-            input_sequences.back().emplace_back(VectorXd(1));
-            input_sequences.back().back()[0] = x;
-
-            VectorXd label = VectorXd(3);
-            if (x)
-            {
-                label = label_sequences.back().back();
-            }
-            else
-            {
-                if (label_sequences.back().back()[0])
-                    label << 0, 1, 0;
-                else if (label_sequences.back().back()[1])
-                    label << 0, 0, 1;
-                else
-                    label << 1, 0, 0;
-            }
-            label_sequences.back().push_back(label);
-        }
-    }
-    for (int i = 0; i < 25; ++i)
-    {
-        eval_input_sequences.emplace_back(std::vector<VectorXd>());
-        eval_label_sequences.emplace_back(std::vector<VectorXd>());
-        // ruleset
-        // pie, burger, chicken
-        // sunny, rainy
-        // if sunny
-        //   same as yesterday
-        // if rainy
-        //   if pie
-        //     burger
-        //   if burger
-        //     chicken
-        //   if chicken
-        //     pie
-        eval_input_sequences.back().emplace_back(VectorXd(1));
-        eval_input_sequences.back().back().setZero();
-        eval_label_sequences.back().emplace_back(VectorXd(3));
-        eval_label_sequences.back().back().setZero();
-        eval_label_sequences.back().back()[0] = rand() % 3;
-        for (int j = 0; j < 30; ++j)
-        {
-            float x = rand() % 2;
-            eval_input_sequences.back().emplace_back(VectorXd(1));
-            eval_input_sequences.back().back()[0] = x;
-
-            VectorXd label = VectorXd(3);
-            if (x)
-            {
-                label = eval_label_sequences.back().back();
-            }
-            else
-            {
-                if (eval_label_sequences.back().back()[0])
-                    label << 0, 1, 0;
-                else if (eval_label_sequences.back().back()[1])
-                    label << 0, 0, 1;
-                else
-                    label << 1, 0, 0;
-            }
-            eval_label_sequences.back().push_back(label);
-        }
-    }
+    Dataset<std::vector<VectorXd>> train = UnitTests::MealSequence(150, 30);
+    Dataset<std::vector<VectorXd>> test = UnitTests::MealSequence(40, 30);
 #endif
 
 #pragma endregion
 
 #pragma region BEGIN LOG
-
+#if 1
     std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
     time_t tt = std::chrono::system_clock::to_time_t(now);
     tm time;
@@ -219,49 +132,43 @@ int main()
     std::ofstream log("logs/" + filename + ".txt", std::ios::app);
     if (!log)
     {
-        std::cout << "Failed to open file " << filename << ".emg" << std::endl;
+        std::cout << "Failed to open file " << filename << ".txt" << std::endl;
         return 0xBAADDA7E;
     }
+#endif
 #pragma endregion
 
 #pragma region TRAIN NET
 
-    for (int epoch = 0; epoch < 10; ++epoch)
+    for (int epoch = 0; epoch < 100; ++epoch)
     {
         std::cout << "Epoch:\t" << epoch << std::endl;
-        double net_error = 0;
-        double smoothed_error = 0;
-        const double smoothing = 0.3;
-        for (int seq = 0; seq < input_sequences.size(); ++seq)
-        {
-            //std::cout << "Training on sequence " << std::to_string(seq) << " - size: " << input_sequences[seq].size() << std::endl;
-            double avg_err = rnn->trainEx(input_sequences[seq], label_sequences[seq]);                
-            //std::cout << "Last Error:\t" << std::to_string(avg_err) << (avg_err > 0.35 ? "  XXX" : " ") << std::endl;
-            //smoothed_error = (smoothed_error * smoothing + avg_err) / (smoothing + 1);
-            //std::cout << "Smoothed Error:\t" << std::to_string(smoothed_error) << std::endl;
-            net_error += avg_err;
-        }
-        net_error /= input_sequences.size();
-        std::cout << " TRAIN Error:\t" << std::to_string(net_error) << std::endl;
-        log << std::to_string(net_error) << " ";
-
-        for (int seq = 0; seq < eval_input_sequences.size(); ++seq)
-        {
-            //std::cout << "Training on sequence " << std::to_string(seq) << " - size: " << input_sequences[seq].size() << std::endl;
-            double avg_err = rnn->eval(eval_input_sequences[seq], eval_label_sequences[seq]);
-            //std::cout << "Last Error:\t" << std::to_string(avg_err) << (avg_err > 0.35 ? "  XXX" : " ") << std::endl;
-            //smoothed_error = (smoothed_error * smoothing + avg_err) / (smoothing + 1);
-            //std::cout << "Smoothed Error:\t" << std::to_string(smoothed_error) << std::endl;
-            net_error += avg_err;
-        }
-        net_error /= eval_input_sequences.size();
-        std::cout << " EVAL Error: \t" << std::to_string(net_error) << std::endl;
-        log << std::to_string(net_error) << " ";
+        double err = 0;
+        // Train
+        err = rnn->trainSeqBatch(train.inputs, train.labels);
+        std::cout << std::to_string(err) << std::endl;
+        log << std::to_string(err) << " ";
+        // Test
+        err = rnn->evalSeqBatch(train.inputs, train.labels);
+        std::cout << std::to_string(err) << std::endl;
+        log << std::to_string(err) << " ";
     }
 
 #pragma endregion
 
-    log.close();
+
+
+    //log.close();
     delete rnn;
+#else
+    DeepNetwork dnn;
+    Dataset<VectorXd> train = UnitTests::AND(100);
+    Dataset<VectorXd> test = UnitTests::AND(100);
+    for (int epoch = 0; epoch < 10; ++epoch)
+    {
+        std::cout << "Epoch:\t" << epoch << std::endl;
+        std::cout << dnn.train(train.inputs, train.labels) << std::endl;
+    }
+#endif
     return 0;
 }

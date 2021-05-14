@@ -1,6 +1,18 @@
 #include "RecurrentNetwork.h"
 #include <iostream>
 
+//RecurrentNetwork::RecurrentNetwork(std::vector<std::tuple<char, int>> topology, int input_size)
+//{
+//    INPUT_SIZE = input_size;
+//    OUTPUT_SIZE = std::get<1>(topology.back());
+//
+//    for (auto& L : topology)
+//    {
+//
+//    }
+//}
+
+// Takes one input & one label sequence.
 void RecurrentNetwork::train(std::vector<VectorXd> inputs, std::vector<VectorXd> labels)
 {
     resize(inputs.size());
@@ -11,6 +23,7 @@ void RecurrentNetwork::train(std::vector<VectorXd> inputs, std::vector<VectorXd>
     backProp(labels);
 }
 
+// Takes one input & one label sequence. Returns average loss.
 double RecurrentNetwork::trainEx(std::vector<VectorXd> inputs, std::vector<VectorXd> labels)
 {
     resize(inputs.size());
@@ -25,7 +38,30 @@ double RecurrentNetwork::trainEx(std::vector<VectorXd> inputs, std::vector<Vecto
     return net_loss;
 }
 
-double RecurrentNetwork::eval(std::vector<VectorXd> inputs, std::vector<VectorXd> labels)
+// Takes input & label sequences. Returns average loss.
+double RecurrentNetwork::trainSeqBatch(std::vector<std::vector<VectorXd>> input_sequences, std::vector<std::vector<VectorXd>> label_sequences)
+{
+    double net_loss = 0;
+    for (int seq = 0; seq < input_sequences.size(); ++seq)
+    {
+        double local_loss = 0;
+        resize(input_sequences[seq].size());
+        for (int i = 0; i < input_sequences[seq].size(); ++i)
+        {
+            VectorXd outputs = feedForward(input_sequences[seq][i]);
+            local_loss += loss(outputs, label_sequences[seq][i]).sum() / OUTPUT_SIZE;
+        }
+        backProp(label_sequences[seq]);
+        local_loss /= input_sequences[seq].size();
+        net_loss += local_loss;
+    }
+    net_loss /= input_sequences.size();
+    return net_loss;
+}
+
+
+
+double RecurrentNetwork::evalSeq(std::vector<VectorXd> inputs, std::vector<VectorXd> labels)
 {
     resize(inputs.size());
     double net_loss = 0;
@@ -38,11 +74,32 @@ double RecurrentNetwork::eval(std::vector<VectorXd> inputs, std::vector<VectorXd
     return net_loss;
 }
 
+double RecurrentNetwork::evalSeqBatch(std::vector<std::vector<VectorXd>> input_sequences, std::vector<std::vector<VectorXd>> label_sequences)
+{
+    double net_loss = 0;
+    for (int seq = 0; seq < input_sequences.size(); ++seq)
+    {
+        double local_loss = 0;
+        resize(input_sequences[seq].size());
+        for (int i = 0; i < input_sequences[seq].size(); ++i)
+        {
+            VectorXd outputs = feedForward(input_sequences[seq][i]);
+            local_loss += loss(outputs, label_sequences[seq][i]).sum() / OUTPUT_SIZE;
+        }
+        local_loss /= input_sequences[seq].size();
+        net_loss += local_loss;
+    }
+    net_loss /= input_sequences.size();
+    return net_loss;
+}
+
+
+// Internals
 VectorXd RecurrentNetwork::feedForward(VectorXd input)
 {
     VectorXd activations = L1.feedForward(input);
     //activations = L2.feedForward(activations);
-    activations = L3.feedForward(activations);
+    //activations = L3.feedForward(activations);
     y_history.emplace_back(activations);
     return activations;
 }
@@ -56,14 +113,14 @@ double RecurrentNetwork::backProp(std::vector<VectorXd> labels)
     {
         VectorXd grad = dloss(labels[t], y_history[t]);
         net_cost += 2 * grad.sum() / grad.size();
-        grad = L3.backProp(grad, t);
+        //grad = L3.backProp(grad, t);
         //grad = L2.backProp(grad, t);
         L1.backProp(grad, t);
     }
 
     L1.applyUpdates();
     //L2.applyUpdates();
-    L3.applyUpdates();
+    //L3.applyUpdates();
 
     y_history.clear();
     VectorXd empt = VectorXd(OUTPUT_SIZE);
@@ -76,7 +133,7 @@ void RecurrentNetwork::resize(int new_depth)
 {
     L1.resize(new_depth);
     //L2.resize(new_depth);
-    L3.resize(new_depth);
+    //L3.resize(new_depth);
 }
 
 VectorXd RecurrentNetwork::loss(VectorXd outputs, VectorXd targets)

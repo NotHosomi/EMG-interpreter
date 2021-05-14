@@ -79,6 +79,13 @@ void DenseLayer::clearCaches()
 	grad.setZero(OUTPUT_SIZE, INPUT_SIZE + 1);
 	delta_grad.setZero(OUTPUT_SIZE, INPUT_SIZE + 1);
 }
+
+MatrixXd DenseLayer::mtable(VectorXd rows, RowVectorXd cols)
+{
+	return rows.replicate(1, cols.size()).cwiseProduct(
+		cols.replicate(rows.size(), 1)
+	);
+}
 #pragma endregion
 
 VectorXd DenseLayer::feedForward(VectorXd x_t)
@@ -96,6 +103,7 @@ VectorXd DenseLayer::backProp(VectorXd gradient, unsigned int t)
 {
 	VectorXd de_db = (w * x_history[t]).unaryExpr(&dsigmoid).cwiseProduct(gradient);
 	MatrixXd de_dw = de_db * x_history[t].transpose();
+	//MatrixXd de_dw = 
 
 	grad += de_dw;
 	return w.block(0, 0, OUTPUT_SIZE, INPUT_SIZE).transpose() * de_db;

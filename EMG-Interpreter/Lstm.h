@@ -5,9 +5,6 @@
 
 using namespace Eigen;
 
-// temp, for example
-#include <vector>
-
 class Lstm
 {
 public:
