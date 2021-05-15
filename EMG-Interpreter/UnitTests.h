@@ -67,7 +67,11 @@ namespace UnitTests
         return data;
 	}
 
-    Dataset<VectorXd> XOR(int dataset_size)
+    enum GateType
+    {
+        AND, OR, XOR
+    };
+    Dataset<VectorXd> gate(int dataset_size, GateType gt)
     {
         std::random_device rd;
         std::mt19937 mt(rd());
@@ -80,27 +84,18 @@ namespace UnitTests
         {
             input[0] = r(mt);
             input[1] = r(mt);
-            output[0] = (input[0] != input[1]);
-            data.inputs.push_back(input);
-            data.labels.push_back(output);
-        }
-        return data;
-    }
-
-    Dataset<VectorXd> AND(int dataset_size)
-    {
-        std::random_device rd;
-        std::mt19937 mt(rd());
-        std::uniform_int_distribution<int> r(0, 1);
-
-        Dataset<VectorXd> data;
-        VectorXd input(2);
-        VectorXd output(1);
-        for (int i = 0; i < dataset_size; ++i)
-        {
-            input[0] = r(mt);
-            input[1] = r(mt);
-            output[0] = (input[0] && input[1]);
+            switch (gt)
+            {
+            case GateType::AND:
+                output[0] = (input[0] && input[1]);
+                break;
+            case GateType::OR:
+                output[0] = (input[0] || input[1]);
+                break;
+            case GateType::XOR:
+                output[0] = (input[0] != input[1]);
+                break;
+            }
             data.inputs.push_back(input);
             data.labels.push_back(output);
         }
