@@ -46,12 +46,31 @@ void DeepNetwork::backProp(VectorXd label)
 
 VectorXd DeepNetwork::loss(VectorXd outputs, VectorXd targets)
 {
-    return (outputs - targets).cwiseAbs();
+    //return (outputs - targets).cwiseAbs();
+    VectorXd loss(OUTPUT_SIZE);
+    for (int i = 0; i < OUTPUT_SIZE; ++i)
+    {
+        loss[i] = targets[i] * (outputs[i] - 1) + (1 - targets[i]) * outputs[i];
+    }
+    return loss;
 }
 
 VectorXd DeepNetwork::dloss(VectorXd outputs, VectorXd targets)
 {
-    return (outputs - targets);
-    //ArrayXd out = outputs.array();
-    //return ((out - targets.array()) * out * (1 - out)).matrix();
+    double eps = 1e-8; // epsilon, used to prevent log(0) (not a real number)
+    VectorXd dloss(OUTPUT_SIZE);
+    for (int i = 0; i < OUTPUT_SIZE; ++i)
+    {
+        if (outputs[i] == 0)
+            outputs[i] += eps;
+        else if (outputs[i] == 1)
+            outputs[i] -= eps;
+        dloss[i] = -targets[i] * log(outputs[i]) - (1 - targets[i]) * log(1 - outputs[i]);
+
+        // correct for the derivative being in the wrong direction when the delta SHOULD be negative!
+        // This is totally not a hack
+        if (outputs[i] > targets[i])
+            dloss[i] *= -1;
+    }
+    return dloss;
 }
