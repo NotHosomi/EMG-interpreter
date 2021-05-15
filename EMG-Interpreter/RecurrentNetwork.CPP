@@ -138,24 +138,29 @@ void RecurrentNetwork::resize(int new_depth)
 
 VectorXd RecurrentNetwork::loss(VectorXd outputs, VectorXd targets)
 {
-    return (outputs - targets).cwiseAbs();
-    //VectorXd dloss(OUTPUT_SIZE);
-    //for (int i = 0; i < OUTPUT_SIZE; ++i)
-    //{
-    //    dloss[i] = targets[i] * (outputs[i] - 1) + (1 - targets[i]) * outputs[i];
-    //}
-    //return dloss;
+    //return (outputs - targets).cwiseAbs();
+    VectorXd loss(OUTPUT_SIZE);
+    for (int i = 0; i < OUTPUT_SIZE; ++i)
+    {
+        loss[i] = targets[i] * (outputs[i] - 1) + (1 - targets[i]) * outputs[i];
+    }
+    return loss;
 }
 
 VectorXd RecurrentNetwork::dloss(VectorXd outputs, VectorXd targets)
 {
-    return 2 * (outputs - targets);
-    //VectorXd loss(OUTPUT_SIZE);
-    //for (int i = 0; i < OUTPUT_SIZE; ++i)
-    //{
-    //    loss[i] = -targets[i] * log(outputs[i]) - (1 - targets[i]) * log(1 - outputs[i]);
-    //}
-    //return loss;
+    double eps = 1e-8; // epsilon, used to prevent log(0) (not a real number)
+    //return 2 * (outputs - targets);
+    VectorXd loss(OUTPUT_SIZE);
+    for (int i = 0; i < OUTPUT_SIZE; ++i)
+    {
+        if (outputs[i] == 0)
+            outputs[i] += eps;
+        else if (outputs[i] == 1)
+            outputs[i] -= eps;
+        loss[i] = -targets[i] * log(outputs[i]) - (1 - targets[i]) * log(1 - outputs[i]);
+    }
+    return loss;
 }
 
 // Binary Cross-Entropy Loss
