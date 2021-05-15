@@ -36,6 +36,7 @@ private:
 
 	std::vector<VectorXd> x_history;
 	std::vector<VectorXd> y_history;
+	std::vector<VectorXd> z_history; // saves having to recompute Z for backprop
 	MatrixXd w;
 	MatrixXd grad;
 	MatrixXd delta_grad;

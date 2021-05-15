@@ -1,5 +1,6 @@
 #include "DenseLayer.h"
 #include <assert.h>
+#include <iostream>
 
 DenseLayer::DenseLayer(int input_size, int output_size, double alpha) :
 	INPUT_SIZE(input_size), OUTPUT_SIZE(output_size), alpha(alpha)
@@ -10,11 +11,12 @@ DenseLayer::DenseLayer(int input_size, int output_size, double alpha) :
 	// add a 0th tick (everything set to 0)
 	VectorXd empt(INPUT_SIZE);
 	empt.setZero();
-	x_history.emplace_back(empt);
+	x_history.push_back(empt);
 
 	empt = VectorXd(OUTPUT_SIZE);
 	empt.setZero();
-	y_history.emplace_back(empt);
+	y_history.push_back(empt);
+	z_history.push_back(empt);
 
 	grad.setZero(OUTPUT_SIZE, INPUT_SIZE + 1);
 	delta_grad.setZero(OUTPUT_SIZE, INPUT_SIZE + 1);
@@ -28,7 +30,8 @@ double DenseLayer::sigmoid(double x)
 
 double DenseLayer::dsigmoid(double x)
 {
-	return (1 / (1 + exp(-x))) * (1 - (1 / (1 + exp(-x))));
+	double s = 1 / (1 + exp(-x));
+	return s * (1 - s);
 }
 
 double DenseLayer::tangent(double x)
@@ -66,20 +69,23 @@ void DenseLayer::clearCaches()
 {
 	x_history.clear();
 	y_history.clear();
+	z_history.clear();
 
 	VectorXd empt(INPUT_SIZE);
 	empt.setZero();
-	x_history.emplace_back(empt);
+	x_history.push_back(empt);
 
 	empt = VectorXd(OUTPUT_SIZE);
 	empt.setZero();
-	y_history.emplace_back(empt);
+	y_history.push_back(empt);
+	z_history.push_back(empt);
 
 	// clear update buffers
 	grad.setZero(OUTPUT_SIZE, INPUT_SIZE + 1);
 	delta_grad.setZero(OUTPUT_SIZE, INPUT_SIZE + 1);
 }
 
+// doesn't this just emulate r*c?
 MatrixXd DenseLayer::mtable(VectorXd rows, RowVectorXd cols)
 {
 	return rows.replicate(1, cols.size()).cwiseProduct(
@@ -92,21 +98,33 @@ VectorXd DenseLayer::feedForward(VectorXd x_t)
 {
 	VectorXd in(INPUT_SIZE + 1);
 	in << x_t, 1;
-	x_history.emplace_back(in);
+	x_history.push_back(in);
+	//std::cout << "\n\n\nIN:\n" << in << std::endl;
+	//std::cout << "W:\n" << w << std::endl;
 
-	VectorXd output = (w * in).unaryExpr(&sigmoid);
-	y_history.emplace_back(output);
+	VectorXd z = w * in;
+	z_history.push_back(z);
+	//std::cout << "Z:\n" << z << std::endl;
+
+	VectorXd output = (z).unaryExpr(&sigmoid);
+	y_history.push_back(output);
+	//std::cout << "A:\n" << output << std::endl;
 	return output;
 }
 
 VectorXd DenseLayer::backProp(VectorXd gradient, unsigned int t)
 {
-	VectorXd de_db = (w * x_history[t]).unaryExpr(&dsigmoid).cwiseProduct(gradient);
-	MatrixXd de_dw = de_db * x_history[t].transpose();
-	//MatrixXd de_dw = 
+	VectorXd da_dz = z_history[t].unaryExpr(&dsigmoid);
+	//std::cout << "da_dz:\n" << da_dz << std::endl;
+	VectorXd de_dz = da_dz.cwiseProduct(gradient);
+	//std::cout << "de_dz:\n" << de_dz << std::endl;
+
+	//MatrixXd de_dw = de_dz * x_history[t].transpose();
+	MatrixXd de_dw = mtable(de_dz, x_history[t].transpose());
+	//std::cout << "de_dw:\n" << de_dw << std::endl;
 
 	grad += de_dw;
-	return w.block(0, 0, OUTPUT_SIZE, INPUT_SIZE).transpose() * de_db;
+	return w.block(0, 0, OUTPUT_SIZE, INPUT_SIZE).transpose() * de_dz;
 }
 
 void DenseLayer::applyUpdates()
@@ -118,6 +136,7 @@ void DenseLayer::applyUpdates()
 	// apply update sums
 	// TODO use adam instead of just RMS prop
 	w += (alpha / sqrt(delta_grad.array() + 1e-8) * grad.array()).matrix();
+	clearCaches();
 }
 
 void DenseLayer::resize(int new_depth)
@@ -126,4 +145,5 @@ void DenseLayer::resize(int new_depth)
 	new_depth++;
 	x_history.reserve(new_depth);
 	y_history.reserve(new_depth);
+	z_history.reserve(new_depth);
 }

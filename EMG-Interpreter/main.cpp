@@ -11,9 +11,20 @@
 #define INPUT_SIZE 3
 #define LABEL_SIZE 5
 
+#define DNN 1
+#define RNN 0
+
+
+MatrixXd mtable(VectorXd rows, RowVectorXd cols)
+{
+    return rows.replicate(1, cols.size()).cwiseProduct(
+        cols.replicate(rows.size(), 1)
+    );
+}
+
 int main()
 {
-#if 1
+#if RNN
 #pragma region BUILD NET
 
 #ifdef RNN_LOADING
@@ -111,8 +122,11 @@ int main()
     data_file.close();
     std::cout << "Signal data mounted" << std::endl;
 #else
-    Dataset<std::vector<VectorXd>> train = UnitTests::MealSequence(150, 30);
-    Dataset<std::vector<VectorXd>> test = UnitTests::MealSequence(40, 30);
+    std::vector<Dataset<std::vector<VectorXd>>> batches;
+    //for (int i = 0; i < 10; ++i)
+    //    batches.push_back(UnitTests::MealSequence(30, 30));
+    Dataset<std::vector<VectorXd>> train = UnitTests::MealSequence(500, 50);
+    Dataset<std::vector<VectorXd>> test = UnitTests::MealSequence(50, 50);
 #endif
 
 #pragma endregion
@@ -123,7 +137,7 @@ int main()
     time_t tt = std::chrono::system_clock::to_time_t(now);
     tm time;
     localtime_s(&time, &tt);
-    std::string filename = std::to_string(time.tm_year) + "-"
+    std::string filename = "2" + std::to_string(time.tm_year) + "-"
         + std::to_string(time.tm_mon) + "-"
         + std::to_string(time.tm_mday) + "_"
         + std::to_string(time.tm_hour) + "-"
@@ -145,11 +159,12 @@ int main()
         std::cout << "Epoch:\t" << epoch << std::endl;
         double err = 0;
         // Train
+        //err = rnn->trainSeqBatch(batches[epoch].inputs, batches[epoch].labels);
         err = rnn->trainSeqBatch(train.inputs, train.labels);
         std::cout << std::to_string(err) << std::endl;
         log << std::to_string(err) << " ";
         // Test
-        err = rnn->evalSeqBatch(train.inputs, train.labels);
+        err = rnn->evalSeqBatch(test.inputs, test.labels);
         std::cout << std::to_string(err) << std::endl;
         log << std::to_string(err) << " ";
     }
@@ -160,15 +175,16 @@ int main()
 
     //log.close();
     delete rnn;
-#else
+#elif DNN
     DeepNetwork dnn;
-    Dataset<VectorXd> train = UnitTests::AND(100);
-    Dataset<VectorXd> test = UnitTests::AND(100);
-    for (int epoch = 0; epoch < 10; ++epoch)
+    Dataset<VectorXd> train = UnitTests::gate(30, UnitTests::OR);
+    //Dataset<VectorXd> test = UnitTests::gate(20, UnitTests::OR); 
+    for (int epoch = 0; epoch < 30; ++epoch)
     {
         std::cout << "Epoch:\t" << epoch << std::endl;
         std::cout << dnn.train(train.inputs, train.labels) << std::endl;
     }
 #endif
+
     return 0;
 }

@@ -1,7 +1,20 @@
 #include "DeepNetwork.h"
-
+#include <iostream>
 
 double DeepNetwork::train(std::vector<VectorXd> inputs, std::vector<VectorXd> labels)
+{
+    double net_loss = 0;
+    for (int i = 0; i < inputs.size(); ++i)
+    {
+        feedForward(inputs[i]);
+        net_loss += loss(y, labels[i]).sum() / OUTPUT_SIZE;
+        backProp(labels[i]);
+    }
+    net_loss /= inputs.size();
+    return net_loss;
+}
+
+double DeepNetwork::eval(std::vector<VectorXd> inputs, std::vector<VectorXd> labels)
 {
     double net_loss = 0;
     for (int i = 0; i < inputs.size(); ++i)
@@ -17,14 +30,15 @@ double DeepNetwork::train(std::vector<VectorXd> inputs, std::vector<VectorXd> la
 void DeepNetwork::feedForward(VectorXd input)
 {
     VectorXd a = L1.feedForward(input);
-    y = L2.feedForward(a);
+    a = L2.feedForward(a);
+    y = a; 
 }
 
 void DeepNetwork::backProp(VectorXd label)
 {
     VectorXd grad = dloss(y, label);
-    grad = L1.backProp(grad, 0);
-    L2.backProp(grad, 0);
+    grad = L2.backProp(grad, 1);
+    grad = L1.backProp(grad, 1);
 
     L1.applyUpdates();
     L2.applyUpdates();
