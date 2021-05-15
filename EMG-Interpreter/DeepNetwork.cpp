@@ -31,17 +31,20 @@ void DeepNetwork::feedForward(VectorXd input)
 {
     VectorXd a = L1.feedForward(input);
     a = L2.feedForward(a);
+    a = L3.feedForward(a);
     y = a; 
 }
 
 void DeepNetwork::backProp(VectorXd label)
 {
     VectorXd grad = dloss(y, label);
+    grad = L3.backProp(grad, 1);
     grad = L2.backProp(grad, 1);
     grad = L1.backProp(grad, 1);
 
     L1.applyUpdates();
     L2.applyUpdates();
+    L3.applyUpdates();
 }
 
 VectorXd DeepNetwork::loss(VectorXd outputs, VectorXd targets)

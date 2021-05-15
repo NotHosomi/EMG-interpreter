@@ -177,7 +177,7 @@ int main()
     delete rnn;
 #elif DNN
     DeepNetwork dnn;
-    Dataset<VectorXd> train = UnitTests::gate(30, UnitTests::OR);
+    Dataset<VectorXd> train = UnitTests::gate(30, UnitTests::AND);
     //Dataset<VectorXd> test = UnitTests::gate(20, UnitTests::OR); 
     for (int epoch = 0; epoch < 30; ++epoch)
     {
