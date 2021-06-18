@@ -11,8 +11,11 @@
 #define INPUT_SIZE 3
 #define LABEL_SIZE 5
 
-#define DNN 1
 #define RNN 0
+#define DNN !RNN
+#define RNN_TEST 1
+#define RNN_LOADING 0
+#define LOGGING 0
 
 
 MatrixXd mtable(VectorXd rows, RowVectorXd cols)
@@ -27,7 +30,7 @@ int main()
 #if RNN
 #pragma region BUILD NET
 
-#ifdef RNN_LOADING
+#if RNN_LOADING
     RecurrentNetwork* rnn;
     std::string fileaddress;
     std::ifstream net_file;
@@ -52,7 +55,7 @@ int main()
 
 #pragma region LOAD SAMPLES
 
-#if 0
+#if !RNN_TEST
     std::ifstream data_file;
     while (1)
     {
@@ -122,17 +125,29 @@ int main()
     data_file.close();
     std::cout << "Signal data mounted" << std::endl;
 #else
-    std::vector<Dataset<std::vector<VectorXd>>> batches;
+    //std::vector<Dataset<std::vector<VectorXd>>> batches;
     //for (int i = 0; i < 10; ++i)
     //    batches.push_back(UnitTests::MealSequence(30, 30));
-    Dataset<std::vector<VectorXd>> train = UnitTests::MealSequence(500, 50);
-    Dataset<std::vector<VectorXd>> test = UnitTests::MealSequence(50, 50);
+    //Dataset<std::vector<VectorXd>> train = UnitTests::MealSequence(500, 20);
+    //Dataset<std::vector<VectorXd>> test = UnitTests::MealSequence(100, 20);
+
+    //Dataset<std::vector<VectorXd>> train = UnitTests::LstmDebugA(80, 10);
+    //Dataset<std::vector<VectorXd>> test = UnitTests::LstmDebugA(20, 10);
+    
+    //Dataset<std::vector<VectorXd>> train = UnitTests::LstmMaximizer(80, 10, 4, 1, false);
+    //Dataset<std::vector<VectorXd>> test = UnitTests::LstmMaximizer(20, 10, 4, 1, false);
+     
+    Dataset<std::vector<VectorXd>> train = UnitTests::LstmSingle(800, UnitTests::GateType::AND);
+    Dataset<std::vector<VectorXd>> test = UnitTests::LstmSingle(200, UnitTests::GateType::AND);
+    
+    //Dataset<std::vector<VectorXd>> train = UnitTests::Noise(80, 10, 4, 1); 
+    //Dataset<std::vector<VectorXd>> test = UnitTests::Noise(20, 10, 4, 1);
 #endif
 
 #pragma endregion
 
 #pragma region BEGIN LOG
-#if 1
+#if LOGGING
     std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
     time_t tt = std::chrono::system_clock::to_time_t(now);
     tm time;
@@ -154,36 +169,52 @@ int main()
 
 #pragma region TRAIN NET
 
-    for (int epoch = 0; epoch < 100; ++epoch)
+    for (int epoch = 0; epoch < 10; ++epoch)
     {
         std::cout << "Epoch:\t" << epoch << std::endl;
-        double err = 0;
+        double train_err = 0;
+        double test_err = 0;
         // Train
         //err = rnn->trainSeqBatch(batches[epoch].inputs, batches[epoch].labels);
-        err = rnn->trainSeqBatch(train.inputs, train.labels);
-        std::cout << std::to_string(err) << std::endl;
-        log << std::to_string(err) << " ";
+        train_err = rnn->trainSeqBatch(train.inputs, train.labels);
+        std::cout << std::to_string(train_err) << std::endl;
         // Test
-        err = rnn->evalSeqBatch(test.inputs, test.labels);
-        std::cout << std::to_string(err) << std::endl;
-        log << std::to_string(err) << " ";
+        test_err = rnn->evalSeqBatch(test.inputs, test.labels);
+        std::cout << std::to_string(test_err) << std::endl;
+#if LOGGING
+        log << std::to_string(train_err) << " ";
+        log << std::to_string(test_err) << " ";
+#endif
     }
 
 #pragma endregion
 
 
-
-    //log.close();
+#if LOGGING
+    log.close();
+#endif
     delete rnn;
 #elif DNN
     DeepNetwork dnn;
     Dataset<VectorXd> train = UnitTests::gate(30, UnitTests::AND);
-    //Dataset<VectorXd> test = UnitTests::gate(20, UnitTests::OR); 
+    Dataset<VectorXd> test = UnitTests::gate(20, UnitTests::AND);
     for (int epoch = 0; epoch < 30; ++epoch)
     {
         std::cout << "Epoch:\t" << epoch << std::endl;
         std::cout << dnn.train(train.inputs, train.labels) << std::endl;
+        std::cout << dnn.eval(test.inputs, test.labels) << std::endl;
     }
+
+    VectorXd in = VectorXd(2);
+    in.setZero();
+    std::cout << "\nAND Test:\n" << dnn.run(in) << std::endl;
+    in[1] = 1;
+    std::cout << dnn.run(in) << std::endl;
+    in[0] = 1;
+    in[1] = 0;
+    std::cout << dnn.run(in) << std::endl;
+    in[1] = 1;
+    std::cout << dnn.run(in) << std::endl;
 #endif
 
     return 0;

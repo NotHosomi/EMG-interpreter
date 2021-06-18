@@ -30,8 +30,6 @@ private:
 	double backProp(std::vector<VectorXd> labels);
 
 	void resize(int new_depth);
-	VectorXd loss(VectorXd outputs, VectorXd targets);
-	VectorXd dloss(VectorXd outputs, VectorXd targets);
 	//int INPUT_SIZE = 3;
 	//int OUTPUT_SIZE = 5;
 	int depth;
@@ -44,9 +42,14 @@ private:
 	
 	std::vector<VectorXd> y_history;
 
-	int INPUT_SIZE = 1;
-	int OUTPUT_SIZE = 3;
-	Lstm L1 = Lstm(1, 3, 0.15);
+	//int INPUT_SIZE = 1;
+	//int OUTPUT_SIZE = 3;
+	//Lstm L1 = Lstm(1, 5, 0.15);
+	//DenseLayer L2 = DenseLayer(5, 3, 0.15);
+	 
+	int INPUT_SIZE = 2;
+	int OUTPUT_SIZE = 1;
+	Lstm L1 = Lstm(2, 1, 0.15);
 
 	//std::vector<Layer*> Layers;
 };

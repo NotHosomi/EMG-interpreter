@@ -1,5 +1,8 @@
 #include "RecurrentNetwork.h"
 #include <iostream>
+#include "Common.h"
+
+//#define CROSS_ENTROPY
 
 //RecurrentNetwork::RecurrentNetwork(std::vector<std::tuple<char, int>> topology, int input_size)
 //{
@@ -31,7 +34,7 @@ double RecurrentNetwork::trainEx(std::vector<VectorXd> inputs, std::vector<Vecto
     for (int i = 0; i < inputs.size(); ++i)
     {
         VectorXd outputs = feedForward(inputs[i]);
-        net_loss += loss(outputs, labels[i]).sum() / OUTPUT_SIZE;
+        net_loss += Common::loss(outputs, labels[i]).sum() / OUTPUT_SIZE;
     }
     backProp(labels);
     net_loss /= inputs.size();
@@ -49,7 +52,7 @@ double RecurrentNetwork::trainSeqBatch(std::vector<std::vector<VectorXd>> input_
         for (int i = 0; i < input_sequences[seq].size(); ++i)
         {
             VectorXd outputs = feedForward(input_sequences[seq][i]);
-            local_loss += loss(outputs, label_sequences[seq][i]).sum() / OUTPUT_SIZE;
+            local_loss += Common::loss(outputs, label_sequences[seq][i]).sum() / OUTPUT_SIZE;
         }
         backProp(label_sequences[seq]);
         local_loss /= input_sequences[seq].size();
@@ -59,8 +62,6 @@ double RecurrentNetwork::trainSeqBatch(std::vector<std::vector<VectorXd>> input_
     return net_loss;
 }
 
-
-
 double RecurrentNetwork::evalSeq(std::vector<VectorXd> inputs, std::vector<VectorXd> labels)
 {
     resize(inputs.size());
@@ -68,7 +69,7 @@ double RecurrentNetwork::evalSeq(std::vector<VectorXd> inputs, std::vector<Vecto
     for (int i = 0; i < inputs.size(); ++i)
     {
         VectorXd outputs = feedForward(inputs[i]);
-        net_loss += loss(outputs, labels[i]).sum() / OUTPUT_SIZE;
+        net_loss += Common::loss(outputs, labels[i]).sum() / OUTPUT_SIZE;
     }
     net_loss /= inputs.size();
     return net_loss;
@@ -84,7 +85,7 @@ double RecurrentNetwork::evalSeqBatch(std::vector<std::vector<VectorXd>> input_s
         for (int i = 0; i < input_sequences[seq].size(); ++i)
         {
             VectorXd outputs = feedForward(input_sequences[seq][i]);
-            local_loss += loss(outputs, label_sequences[seq][i]).sum() / OUTPUT_SIZE;
+            local_loss += Common::loss(outputs, label_sequences[seq][i]).sum() / OUTPUT_SIZE;
         }
         local_loss /= input_sequences[seq].size();
         net_loss += local_loss;
@@ -111,7 +112,7 @@ double RecurrentNetwork::backProp(std::vector<VectorXd> labels)
     int r_limit = labels.size() < y_history.size() - 1 ? y_history.size() - labels.size() : 1;
     for (int t = labels.size()-1; t >= r_limit; --t)
     {
-        VectorXd grad = dloss(labels[t], y_history[t]);
+        VectorXd grad = Common::dloss(y_history[t], labels[t]);
         net_cost += 2 * grad.sum() / grad.size();
         //grad = L3.backProp(grad, t);
         //grad = L2.backProp(grad, t);
@@ -135,36 +136,3 @@ void RecurrentNetwork::resize(int new_depth)
     //L2.resize(new_depth);
     //L3.resize(new_depth);
 }
-
-VectorXd RecurrentNetwork::loss(VectorXd outputs, VectorXd targets)
-{
-    //return (outputs - targets).cwiseAbs();
-    VectorXd loss(OUTPUT_SIZE);
-    for (int i = 0; i < OUTPUT_SIZE; ++i)
-    {
-        loss[i] = targets[i] * (outputs[i] - 1) + (1 - targets[i]) * outputs[i];
-    }
-    return loss;
-}
-
-VectorXd RecurrentNetwork::dloss(VectorXd outputs, VectorXd targets)
-{
-    double eps = 1e-8; // epsilon, used to prevent log(0) (not a real number)
-    //return 2 * (outputs - targets);
-    VectorXd loss(OUTPUT_SIZE);
-    for (int i = 0; i < OUTPUT_SIZE; ++i)
-    {
-        if (outputs[i] == 0)
-            outputs[i] += eps;
-        else if (outputs[i] == 1)
-            outputs[i] -= eps;
-        loss[i] = -targets[i] * log(outputs[i]) - (1 - targets[i]) * log(1 - outputs[i]);
-    }
-    return loss;
-}
-
-// Binary Cross-Entropy Loss
-// CE = -SUM(target[i] * log(output[i])
-// 
-// CE[i] = -target[i] * log(output[i]) - (1 - target[i]) * log(1 - output[i])
-// dCE[i] = target[i] * (output[i] - 1) + (1-target[i]) * output[i]

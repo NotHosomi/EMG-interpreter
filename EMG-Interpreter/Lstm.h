@@ -19,12 +19,6 @@ public:
 
 private:
 	// internal utils
-	static double sigmoid(double x);
-	static double dsigmoid(double x);
-	static double tangent(double x);
-	static double dtangent(double x);
-	static double m_clamp(double x);
-	static double reciprocal(double x);
 	void clearCaches();
 
 public:
@@ -48,6 +42,11 @@ private:
 	MatrixXd i; // ignore
 	MatrixXd c; // candidate
 	MatrixXd o; // output
+	// Gate cache history
+	std::vector<VectorXd> fz_history;
+	std::vector<VectorXd> iz_history;
+	std::vector<VectorXd> cz_history;
+	std::vector<VectorXd> oz_history;
 	// Gate output history
 	std::vector<VectorXd> f_history;
 	std::vector<VectorXd> i_history;
@@ -68,4 +67,6 @@ private:
 	MatrixXd tiu;
 	MatrixXd tcu;
 	MatrixXd tou;
+
+	void evalUpdates(MatrixXd gate, MatrixXd updates, char name);
 };

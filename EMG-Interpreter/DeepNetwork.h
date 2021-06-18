@@ -7,12 +7,11 @@ public:
 	double train(std::vector<VectorXd> inputs, std::vector<VectorXd> labels);
 	double eval(std::vector<VectorXd> inputs, std::vector<VectorXd> labels);
 
+	VectorXd run(VectorXd inputs);
+
 private:
 	void feedForward(VectorXd input);
 	void backProp(VectorXd label);
-
-	VectorXd loss(VectorXd outputs, VectorXd targets);
-	VectorXd dloss(VectorXd outputs, VectorXd targets);
 
 	int INPUT_SIZE = 2;
 	int OUTPUT_SIZE = 1;
