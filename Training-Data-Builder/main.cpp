@@ -179,8 +179,8 @@ int main() {
     time_t tt = std::chrono::system_clock::to_time_t(now);
     tm time;
     localtime_s(&time, &tt);
-    filename = std::to_string(time.tm_year) + "-"
-        + std::to_string(time.tm_mon) + "-"
+    filename = std::to_string(time.tm_year + 1900) + "-"
+        + std::to_string(time.tm_mon + 1) + "-"
         + std::to_string(time.tm_mday) + "_"
         + std::to_string(time.tm_hour) + "-"
         + std::to_string(time.tm_min) + "-"
