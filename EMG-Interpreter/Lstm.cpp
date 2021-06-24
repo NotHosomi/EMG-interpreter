@@ -6,7 +6,7 @@
 using namespace Common;
 
 Lstm::Lstm(int input_size, int output_size, double alpha) :
-	INPUT_SIZE(input_size), OUTPUT_SIZE(output_size), alpha(alpha)
+	GenericLayer(input_size, output_size, alpha)
 {
 	// init W matrices for gates
 	f = MatrixXd::Random(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1); // + 1 (bias)
@@ -14,39 +14,20 @@ Lstm::Lstm(int input_size, int output_size, double alpha) :
 	c = MatrixXd::Random(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1); // + 1 (bias)
 	o = MatrixXd::Random(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1); // + 1 (bias)
 
-	// add a 0th tick (everything set to 0)
-	VectorXd empt(INPUT_SIZE);
-	empt.setZero();
-	x_history.emplace_back(empt);
+	// init Adam matrices
+	rms_prop_f.setZero(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1);
+	rms_prop_i.setZero(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1);
+	rms_prop_c.setZero(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1);
+	rms_prop_o.setZero(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1);
+	momentum_f.setZero(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1);
+	momentum_i.setZero(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1);
+	momentum_c.setZero(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1);
+	momentum_o.setZero(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1);
 
-	empt = VectorXd(OUTPUT_SIZE);
-	empt.setZero();
-	cs_history.emplace_back(empt);
-	hs_history.emplace_back(empt);
-
-	f_history.emplace_back(empt);
-	i_history.emplace_back(empt);
-	c_history.emplace_back(empt);
-	o_history.emplace_back(empt);
-	fz_history.emplace_back(empt);
-	iz_history.emplace_back(empt);
-	cz_history.emplace_back(empt);
-	oz_history.emplace_back(empt);
-
-	Gf.setZero(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1);
-	Gi.setZero(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1);
-	Gc.setZero(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1);
-	Go.setZero(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1);
-
-
-	dcs.setZero(OUTPUT_SIZE);
-	dhs.setZero(OUTPUT_SIZE);
-	tfu.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1); // + 1 (bias)
-	tiu.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1); // + 1 (bias)
-	tcu.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1); // + 1 (bias)
-	tou.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1); // + 1 (bias)
+	clearCaches();
 }
 
+/*
 Lstm::Lstm(std::ifstream& file, double alpha) :
 	alpha(alpha)
 {
@@ -97,6 +78,7 @@ Lstm::Lstm(std::ifstream& file, double alpha) :
 	tcu.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1); // + 1 (bias)
 	tou.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1); // + 1 (bias)
 }
+*/
 
 VectorXd Lstm::feedForward(VectorXd x_t)
 {
@@ -144,7 +126,7 @@ VectorXd Lstm::feedForward(VectorXd x_t)
 
 
 	// DEBUGGING normalise to 1-0 output, for debugging with Cross entropy
-	return (hs.array() + 1) / 2;
+	//return (hs.array() + 1) / 2;
 
 	return hs;
 }
@@ -230,32 +212,68 @@ VectorXd Lstm::backProp(VectorXd gradient, unsigned int t)
 void Lstm::applyUpdates()
 {
 #ifdef PRINT_UPDATES
-	//std::cout << "-----------------------------"
-	//	<< "\nF\n" << f
-	//	<< "\nI\n" << i
-	//	<< "\nC\n" << c
-	//	<< "\nO\n" << o
-	//	<< "\n\nFu\n" << tfu
-	//	<< "\nIu\n" << tiu
-	//	<< "\nCu\n" << tcu
-	//	<< "\nOu\n" << tou << std::endl;
-	evalUpdates(f, tfu, 'F');
-	evalUpdates(i, tiu, 'I');
-	evalUpdates(c, tcu, 'C');
-	evalUpdates(o, tiu, 'O');
+	std::cout << "-----------------------------"
+		<< "\nF\n" << f
+		<< "\nI\n" << i
+		<< "\nC\n" << c
+		<< "\nO\n" << o
+		<< "\n\nFu\n" << tfu
+		<< "\nIu\n" << tiu
+		<< "\nCu\n" << tcu
+		<< "\nOu\n" << tou << std::endl;
+	//evalUpdates(f, tfu, 'F');
+	//evalUpdates(i, tiu, 'I');
+	//evalUpdates(c, tcu, 'C');
+	//evalUpdates(o, tiu, 'O');
 #endif
-	// update the gradients
-	Gf = 0.99 * Gf + 0.01 * tfu.cwiseProduct(tfu); // Vdw = Beta * Vdw + (1 - Beta) * dw
-	Gi = 0.99 * Gi + 0.01 * tiu.cwiseProduct(tiu);
-	Gc = 0.99 * Gc + 0.01 * tcu.cwiseProduct(tcu);
-	Go = 0.99 * Go + 0.01 * tou.cwiseProduct(tou);
+	++adam_t;
+	// Momentum (V)
+	// Vdw = Beta1 * Vdw + (1 - Beta1) * dw
+	momentum_f = 0.9 * momentum_f + 0.01 * tfu;
+	momentum_i = 0.9 * momentum_i + 0.01 * tfu;
+	momentum_c = 0.9 * momentum_c + 0.01 * tfu;
+	momentum_o = 0.9 * momentum_o + 0.01 * tfu;
+	// RMS Prop (S)
+	// Sdw = Beta2 * Sdw + (1-Beta2) * dw^2
+	rms_prop_f = 0.999 * rms_prop_f + 0.001 * tfu.cwiseProduct(tfu);
+	rms_prop_i = 0.999 * rms_prop_i + 0.001 * tiu.cwiseProduct(tiu);
+	rms_prop_c = 0.999 * rms_prop_c + 0.001 * tcu.cwiseProduct(tcu);
+	rms_prop_o = 0.999 * rms_prop_o + 0.001 * tou.cwiseProduct(tou);
 
+	// Bias correction
+	double beta1_denom = (1 - pow(0.9, adam_t));
+	double beta2_denom = (1 - pow(0.999, adam_t));
+	MatrixXd Vfc = momentum_f / beta1_denom;
+	MatrixXd Vic = momentum_i / beta1_denom;
+	MatrixXd Vcc = momentum_c / beta1_denom;
+	MatrixXd Voc = momentum_o / beta1_denom;
+	MatrixXd Sfc = rms_prop_f / beta2_denom;
+	MatrixXd Sic = rms_prop_i / beta2_denom;
+	MatrixXd Scc = rms_prop_c / beta2_denom;
+	MatrixXd Soc = rms_prop_o / beta2_denom;
+
+#ifdef PRINT_UPDATES
+	std::cout
+		<< "\nB1_\n" << beta1_denom
+		<< "\nB2_\n" << beta2_denom
+		<< "\nAdam T\n" << adam_t
+		<< "\nVfc\n" << Vfc
+		<< "\nVic\n" << Vic
+		<< "\nVcc\n" << Vcc
+		<< "\nVoc\n" << Voc
+		<< "\nSfc\n" << Sfc
+		<< "\nSic\n" << Sic
+		<< "\nScc\n" << Scc
+		<< "\nSoc\n" << Soc
+		<< "-----------------------------"
+		<< std::endl;
+#endif
 	// apply update sums
-	// TODO use adam instead of just RMS prop
-	f -= (alpha / sqrt(Gf.array() + 1e-8) * tfu.array()).matrix();
-	i -= (alpha / sqrt(Gi.array() + 1e-8) * tiu.array()).matrix();
-	c -= (alpha / sqrt(Gc.array() + 1e-8) * tcu.array()).matrix();
-	o -= (alpha / sqrt(Go.array() + 1e-8) * tou.array()).matrix();
+	// w = w - alpha * Vdwc / (root(Sdwc) + eps)
+	f -= (alpha * Vfc.array() / (sqrt(Sfc.array()) + 1e-8)).matrix();
+	i -= (alpha * Vic.array() / (sqrt(Sic.array()) + 1e-8)).matrix();
+	c -= (alpha * Vcc.array() / (sqrt(Scc.array()) + 1e-8)).matrix();
+	o -= (alpha * Voc.array() / (sqrt(Soc.array()) + 1e-8)).matrix();
 
 	// clear update buffers
 	clearCaches();
@@ -270,7 +288,7 @@ void Lstm::printGates()
 	std::cout << "o:\n" << o.format(Fmt) << std::endl;
 }
 
-void Lstm::resize(int new_depth)
+void Lstm::resize(size_t new_depth)
 {
 	clearCaches();
 	new_depth++;
@@ -346,6 +364,7 @@ void Lstm::clearCaches()
 	cs_history.clear();
 	hs_history.clear();
 
+	// add a 0th tick (everything set to 0)
 	VectorXd empt(INPUT_SIZE);
 	empt.setZero();
 	x_history.emplace_back(empt);
@@ -367,12 +386,13 @@ void Lstm::clearCaches()
 	// clear update buffers
 	dcs.setZero(OUTPUT_SIZE);
 	dhs.setZero(OUTPUT_SIZE);
-	tfu.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1); // + 1 (bias)
-	tiu.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1); // + 1 (bias)
-	tcu.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1); // + 1 (bias)
-	tou.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1); // + 1 (bias)
+	tfu.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1);
+	tiu.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1); 
+	tcu.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1); 
+	tou.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1); 
 }
 
+// Debug tool for LstmDebugSeqA
 void Lstm::evalUpdates(MatrixXd gate, MatrixXd updates, char name)
 {
 	VectorXd target(gate.size());

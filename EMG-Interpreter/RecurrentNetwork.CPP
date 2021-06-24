@@ -1,19 +1,21 @@
 #include "RecurrentNetwork.h"
 #include <iostream>
 #include "Common.h"
+#include <assert.h>
 
 //#define CROSS_ENTROPY
 
 //RecurrentNetwork::RecurrentNetwork(std::vector<std::tuple<char, int>> topology, int input_size)
-//{
-//    INPUT_SIZE = input_size;
-//    OUTPUT_SIZE = std::get<1>(topology.back());
-//
-//    for (auto& L : topology)
-//    {
-//
-//    }
-//}
+RecurrentNetwork::RecurrentNetwork()
+{
+    //INPUT_SIZE = input_size;
+    //OUTPUT_SIZE = std::get<1>(topology.back());
+    //
+    //for (auto& L : topology)
+    //{
+    //
+    //}
+}
 
 // Takes one input & one label sequence.
 void RecurrentNetwork::train(std::vector<VectorXd> inputs, std::vector<VectorXd> labels)
@@ -98,41 +100,51 @@ double RecurrentNetwork::evalSeqBatch(std::vector<std::vector<VectorXd>> input_s
 // Internals
 VectorXd RecurrentNetwork::feedForward(VectorXd input)
 {
+    assert(input.size() == INPUT_SIZE && "!!! Input size mismatch !!!");
     VectorXd activations = L1.feedForward(input);
-    //activations = L2.feedForward(activations);
-    //activations = L3.feedForward(activations);
+    activations = L2.feedForward(activations);
+    activations = L3.feedForward(activations);
     y_history.emplace_back(activations);
+    assert(activations.size() == OUTPUT_SIZE && "!!! Output size mismatch !!!");
     return activations;
 }
 
 double RecurrentNetwork::backProp(std::vector<VectorXd> labels)
 {
+    assert(labels.back().size() == OUTPUT_SIZE && "!!! Label size mismatch !!!");
     double net_cost = 0.0;
 
+    //std::cout << "\nlabel count:\t" << labels.size()
+    //    << "\n output count:\t" << y_history.size();
+
     int r_limit = labels.size() < y_history.size() - 1 ? y_history.size() - labels.size() : 1;
-    for (int t = labels.size()-1; t >= r_limit; --t)
+    if (r_limit == 0)
+        int d = 0;
+    for (int t = labels.size(); t >= r_limit; --t)
     {
-        VectorXd grad = Common::dloss(y_history[t], labels[t]);
+        //Debug
+#ifdef PRINT_BP
+        std::cout << "\nRNN Yt:\n" << y_history[t-1];
+        std::cout << "\nRNN Label:\n" << labels[t-1];
+#endif
+        VectorXd grad = Common::dloss(y_history[t-1], labels[t-1]);
         net_cost += 2 * grad.sum() / grad.size();
-        //grad = L3.backProp(grad, t);
-        //grad = L2.backProp(grad, t);
+        grad = L3.backProp(grad, t);
+        grad = L2.backProp(grad, t);
         L1.backProp(grad, t);
     }
 
     L1.applyUpdates();
-    //L2.applyUpdates();
-    //L3.applyUpdates();
+    L2.applyUpdates();
+    L3.applyUpdates();
 
     y_history.clear();
-    VectorXd empt = VectorXd(OUTPUT_SIZE);
-    empt.setZero();
-    y_history.emplace_back(empt);
-    return std::abs(net_cost) / (labels.size() - r_limit);
+    return std::abs(net_cost) / (labels.size());// -r_limit);
 }
 
-void RecurrentNetwork::resize(int new_depth)
+void RecurrentNetwork::resize(size_t new_depth)
 {
     L1.resize(new_depth);
-    //L2.resize(new_depth);
-    //L3.resize(new_depth);
+    L2.resize(new_depth);
+    L3.resize(new_depth);
 }

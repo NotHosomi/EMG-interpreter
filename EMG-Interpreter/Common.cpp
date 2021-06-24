@@ -32,7 +32,6 @@ double Common::dtangent(double x)
 
 VectorXd Common::loss(VectorXd outputs, VectorXd targets)
 {
-#ifdef CROSS_ENTROPY
     double eps = 1e-8; // epsilon, used to prevent log(0) (NaN)
     VectorXd loss(outputs.size());
     for (int i = 0; i < outputs.size(); ++i)
@@ -44,21 +43,16 @@ VectorXd Common::loss(VectorXd outputs, VectorXd targets)
 
         loss[i] = -(targets[i] * log(outputs[i]) + (1 - targets[i]) * log(1 - outputs[i]));
     }
-    //std::cout << "Loss: " << loss << "\nY\n" << outputs << "\nT\n" << targets << std::endl;
+    //std::cout << "Loss: " << loss << "\nY " << outputs << "\nT " << targets << std::endl;
     return loss;
-#else
-    return (outputs - targets).abs();
-#endif
 }
 
 VectorXd Common::dloss(VectorXd outputs, VectorXd targets)
 {
 #ifdef PRINT_BP
-    std::cout << "---------------------------------------------------------------------------------------------------"
+    std::cout << "\n---------------------------------------------------------------------------------------------------"
         << "\nY\n" << outputs << "\nT\n" << targets << std::endl;
 #endif
-
-#ifdef CROSS_ENTROPY
     double eps = 1e-8; // epsilon, used to prevent log(0) (NaN)
     VectorXd dloss(outputs.size());
     for (int i = 0; i < outputs.size(); ++i)
@@ -73,20 +67,11 @@ VectorXd Common::dloss(VectorXd outputs, VectorXd targets)
         // traditional + unifier
         dloss[i] = -(targets[i] / outputs[i]) + (1 - targets[i]) / (1 - outputs[i]) + unifier;
     }
-    //std::cout << "dloss:\t" << dloss << "\nY\t" << outputs << "\nT\t" << targets << std::endl;
-
-    return dloss;
-#else
-    return outputs.array() - targets.array();
+#ifdef PRINT_DLOSS
+    std::cout << "dloss:\t" << dloss << "\nY\t" << outputs << "\nT\t" << targets << std::endl;
 #endif
+    return dloss;
 }
-
-// Binary Cross-Entropy Loss (Is this wrong??)
-// CE = -SUM(target[i] * log(output[i])
-// 
-// CE[i] = -target[i] * log(output[i]) - (1 - target[i]) * log(1 - output[i])
-// dCE[i] = target[i] * (output[i] - 1) + (1-target[i]) * output[i]
-
 
 // Multiclass Binary Cross-Entropy
 // CE = T log(y) + (1 - t) log(1-y)

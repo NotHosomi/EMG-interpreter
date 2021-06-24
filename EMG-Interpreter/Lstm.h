@@ -2,36 +2,30 @@
 
 #include <vector>
 #include <Eigen/Dense>
-
+#include "GenericLayer.h"
 using namespace Eigen;
 
-class Lstm
+
+class Lstm : public GenericLayer
 {
 public:
 	Lstm(int input_size, int output_size, double alpha);
 	Lstm(std::ifstream& file, double alpha);
 
 	// external utils
-	void resize(int new_depth);
+	void resize(size_t new_depth);
 	void printGates();
 	bool saveCell();
 	void loadGates(MatrixXd forget, MatrixXd ignore, MatrixXd candidate, MatrixXd output);
 
-private:
-	// internal utils
-	void clearCaches();
-
 public:
 	// primary functionality
-	VectorXd feedForward(VectorXd x_t);
-	VectorXd backProp(VectorXd gradient, unsigned int t);
-	void applyUpdates();
+	VectorXd feedForward(VectorXd x_t) override;
+	VectorXd backProp(VectorXd gradient, unsigned int t) override;
+	void applyUpdates() override;
 
 private:
-	int INPUT_SIZE; // not const, but these two should never change after construction
-	int OUTPUT_SIZE; // could const these and have loadCell() be a static that returns a new Lstm
-	int depth;
-	double alpha; // learning rate		// TODO make dynamic
+	void clearCaches() override;
 
 	// Cell IO
 	std::vector<VectorXd> x_history;
@@ -52,11 +46,15 @@ private:
 	std::vector<VectorXd> i_history;
 	std::vector<VectorXd> c_history;
 	std::vector<VectorXd> o_history;
-	// Delta gradients
-	MatrixXd Gf;
-	MatrixXd Gi;
-	MatrixXd Gc;
-	MatrixXd Go;
+	// optimizer components
+	MatrixXd momentum_f;
+	MatrixXd momentum_i;
+	MatrixXd momentum_c;
+	MatrixXd momentum_o;
+	MatrixXd rms_prop_f;
+	MatrixXd rms_prop_i;
+	MatrixXd rms_prop_c;
+	MatrixXd rms_prop_o;
 	// TODO: gate bias (VectorXd, for each weight from the bias), or just +1 to the X vector each time maybe?
 
 	// intercell gradients

@@ -147,6 +147,8 @@
     <ClCompile Include="Common.cpp" />
     <ClCompile Include="DeepNetwork.cpp" />
     <ClCompile Include="DenseLayer.cpp" />
+    <ClCompile Include="ElmanLayer.cpp" />
+    <ClCompile Include="GenericLayer.cpp" />
     <ClCompile Include="Lstm.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="RecurrentNetwork.cpp" />
@@ -155,6 +157,8 @@
     <ClInclude Include="Common.h" />
     <ClInclude Include="DeepNetwork.h" />
     <ClInclude Include="DenseLayer.h" />
+    <ClInclude Include="ElmanLayer.h" />
+    <ClInclude Include="GenericLayer.h" />
     <ClInclude Include="Lstm.h" />
     <ClInclude Include="RecurrentNetwork.h" />
     <ClInclude Include="UnitTests.h" />

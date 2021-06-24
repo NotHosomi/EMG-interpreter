@@ -42,7 +42,7 @@ namespace UnitTests
             data.inputs.emplace_back(std::vector<VectorXd>());
             data.labels.emplace_back(std::vector<VectorXd>());
             data.inputs.back().emplace_back(VectorXd(1));
-            data.inputs.back().back().setZero();
+            data.inputs.back().back().setOnes();
             data.labels.back().emplace_back(VectorXd(3));
             data.labels.back().back().setZero();
             data.labels.back().back()[rand() % 3] = 1;
@@ -67,7 +67,11 @@ namespace UnitTests
                         label << 1, 0, 0;
                 }
                 data.labels.back().push_back(label);
+
+                //std::cout << data.inputs.back().back() << "\t"
+                //    << data.labels.back().back().transpose() << std::endl;
             }
+           // std::cout << "--------------------------------------------------" << std::endl;
         }
         return data;
     }
@@ -127,7 +131,7 @@ namespace UnitTests
         return data;
     }
 
-    Dataset<std::vector<VectorXd>> LstmSingle(int dataset_size, GateType gt)
+    Dataset<std::vector<VectorXd>> SeqSingle(int dataset_size, GateType gt)
     {
         std::random_device rd;
         std::mt19937 mt(rd());
@@ -167,6 +171,113 @@ namespace UnitTests
                 }
                 data.inputs.push_back(input);
                 data.labels.push_back(output);
+            }
+        }
+        return data;
+    }
+
+    Dataset<std::vector<VectorXd>> SeqGatesIsolated(int dataset_size, int seq_length, GateType gt)
+    {
+        std::random_device rd;
+        std::mt19937 mt(rd());
+        std::uniform_int_distribution<int> r(0, 1);
+        Dataset<std::vector<VectorXd>> data;
+        VectorXd input(2);
+        VectorXd output(1);
+        for (int i = 0; i < dataset_size; ++i)
+        {
+            data.inputs.emplace_back(std::vector<VectorXd>());
+            data.labels.emplace_back(std::vector<VectorXd>());
+            data.inputs.back().emplace_back(VectorXd(2));
+            data.inputs.back().back().setZero();
+            data.labels.back().emplace_back(VectorXd(1));
+            data.labels.back().back().setZero();
+            for (int j = 0; j < seq_length; ++j)
+            {
+                input[0] = r(mt);
+                input[1] = r(mt);
+                switch (gt)
+                {
+                case GateType::AND:
+                    output[0] = (input[0] && input[1]);
+                    break;
+                case GateType::OR:
+                    output[0] = (input[0] || input[1]);
+                    break;
+                case GateType::XOR:
+                    output[0] = (input[0] != input[1]);
+                    break;
+                }
+                data.inputs.back().push_back(input);
+                data.labels.back().push_back(output);
+            }
+        }
+        return data;
+    }
+
+    Dataset<std::vector<VectorXd>> SeqGatesLinked(int dataset_size, int seq_length, GateType gt)
+    {
+        std::random_device rd;
+        std::mt19937 mt(rd());
+        std::uniform_int_distribution<int> r(0, 1);
+        Dataset<std::vector<VectorXd>> data;
+        VectorXd input(1);
+        VectorXd output(1);
+        for (int i = 0; i < dataset_size; ++i)
+        {
+            data.inputs.emplace_back(std::vector<VectorXd>());
+            data.labels.emplace_back(std::vector<VectorXd>());
+            data.inputs.back().emplace_back(VectorXd(1));
+            data.inputs.back().back().setZero();
+            data.labels.back().emplace_back(VectorXd(1));
+            data.labels.back().back().setZero();
+            for (int j = 0; j < seq_length; ++j)
+            {
+                input[0] = r(mt);
+                switch (gt)
+                {
+                case GateType::AND:
+                    output[0] = (input[0] && data.inputs.back().back()[0]);
+                    break;
+                case GateType::OR:
+                    output[0] = (input[0] || data.inputs.back().back()[0]);
+                    break;
+                case GateType::XOR:
+                    output[0] = (input[0] != data.inputs.back().back()[0]);
+                    break;
+                }
+                data.inputs.back().push_back(input);
+                data.labels.back().push_back(output);
+            }
+        }
+        return data;
+    }
+
+    Dataset<std::vector<VectorXd>> Toggle(int dataset_size, int seq_length)
+    {
+        std::random_device rd;
+        std::mt19937 mt(rd());
+        std::uniform_int_distribution<int> r(0, 1);
+        Dataset<std::vector<VectorXd>> data;
+        VectorXd input(1);
+        VectorXd output(1);
+        for (int i = 0; i < dataset_size; ++i)
+        {
+            data.inputs.emplace_back(std::vector<VectorXd>());
+            data.labels.emplace_back(std::vector<VectorXd>());
+            data.inputs.back().emplace_back(VectorXd(1));
+            data.inputs.back().back().setZero();
+            data.labels.back().emplace_back(VectorXd(1));
+            data.labels.back().back().setZero();
+            bool state = false;
+            for (int j = 0; j < seq_length; ++j)
+            {
+                input[0] = r(mt);
+                if (input[0])
+                    state = !state;
+                output[0] = (double)state;
+                data.inputs.back().push_back(input);
+                data.labels.back().push_back(output);
             }
         }
         return data;

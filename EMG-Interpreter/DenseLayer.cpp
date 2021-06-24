@@ -3,23 +3,17 @@
 #include <iostream>
 
 DenseLayer::DenseLayer(int input_size, int output_size, double alpha) :
-	INPUT_SIZE(input_size), OUTPUT_SIZE(output_size), alpha(alpha)
+	GenericLayer(input_size, output_size, alpha)
 {
 	// init W matrices for gates
 	w = MatrixXd::Random(OUTPUT_SIZE, INPUT_SIZE + 1); // + 1 (bias)
 
+	// init Adam matrices
+	momentum.setZero(OUTPUT_SIZE, INPUT_SIZE + 1);
+	rms_prop.setZero(OUTPUT_SIZE, INPUT_SIZE + 1);
+
 	// add a 0th tick (everything set to 0)
-	VectorXd empt(INPUT_SIZE + 1);
-	empt.setZero();
-	x_history.push_back(empt);
-
-	empt = VectorXd(OUTPUT_SIZE);
-	empt.setZero();
-	y_history.push_back(empt);
-	z_history.push_back(empt);
-
-	grad.setZero(OUTPUT_SIZE, INPUT_SIZE + 1);
-	delta_grad.setZero(OUTPUT_SIZE, INPUT_SIZE + 1);
+	clearCaches();
 }
 
 VectorXd DenseLayer::feedForward(VectorXd x_t)
@@ -46,19 +40,33 @@ VectorXd DenseLayer::backProp(VectorXd gradient, unsigned int t)
 	return w.block(0, 0, OUTPUT_SIZE, INPUT_SIZE).transpose() * de_dz;
 }
 
+// Hyperparameters:
+// Alpha: requires tuning
+// Beta1: 0.9
+// Beta2: 0.999
+// Epsilon: 10^-8
 void DenseLayer::applyUpdates()
 {
-	// TODO, implement Adam
-	// Vdw = Beta * Vdw + (1 - Beta) * dw
-	delta_grad = 0.9 * delta_grad + 0.1 * grad.cwiseProduct(grad);
+	++adam_t;
+	// Momentum
+	// Vdw = Beta1 * Vdw + (1 - Beta1) * dw
+	momentum = 0.9 * momentum + 0.1 * grad;
+	// RMS Prop
+	// Sdw = Beta2 * Sdw + (1-Beta2) * dw^2
+	rms_prop = 0.999 * rms_prop + 0.001 * grad.cwiseProduct(grad);
+
+	// Bias correction
+	MatrixXd Vc = momentum / (1- pow(0.9, adam_t));
+	MatrixXd Sc = rms_prop / (1- pow(0.999, adam_t));
 
 	// apply update sums
-	// TODO use adam instead of just RMS prop
-	w -= (alpha / sqrt(delta_grad.array() + 1e-8) * grad.array()).matrix();
+	// w = w - alpha * Vdwc / (root(Sdwc) + eps)
+	w -= (alpha * Vc.array() / (sqrt(Sc.array()) + 1e-8)).matrix();
+
 	clearCaches();
 }
 
-void DenseLayer::resize(int new_depth)
+void DenseLayer::resize(size_t new_depth)
 {
 	clearCaches();
 	new_depth++;
@@ -83,7 +91,5 @@ void DenseLayer::clearCaches()
 	y_history.push_back(empt);
 	z_history.push_back(empt);
 
-	// clear update buffers
 	grad.setZero(OUTPUT_SIZE, INPUT_SIZE + 1);
-	delta_grad.setZero(OUTPUT_SIZE, INPUT_SIZE + 1);
 }

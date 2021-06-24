@@ -5,7 +5,7 @@
 
 using namespace Eigen;
 
-#define CROSS_ENTROPY
+//#define PRINT_FF
 //#define PRINT_DLOSS
 //#define PRINT_BP
 //#define PRINT_UPDATES
