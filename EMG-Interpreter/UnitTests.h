@@ -2,20 +2,15 @@
 #include <random>
 #include <vector>
 #include <Eigen/Dense>
+#include "Dataset.h"
 using namespace Eigen;
 
-template <typename T>
-struct Dataset
-{
-	std::vector<T> inputs;
-	std::vector<T> labels;
-};
 
 namespace UnitTests
 {
     enum GateType
     {
-        AND, OR, XOR
+        AND, OR, XOR, NAND
     };
 
     Dataset<std::vector<VectorXd>> MealSequence(int dataset_size, int seq_length)
@@ -168,6 +163,9 @@ namespace UnitTests
                 case GateType::XOR:
                     output[0] = (input[0] != input[1]);
                     break;
+                case GateType::NAND:
+                    output[0] = !(input[0] && input[1]);
+                    break;
                 }
                 data.inputs.push_back(input);
                 data.labels.push_back(output);
@@ -207,6 +205,9 @@ namespace UnitTests
                 case GateType::XOR:
                     output[0] = (input[0] != input[1]);
                     break;
+                case GateType::NAND:
+                    output[0] = !(input[0] && input[1]);
+                    break;
                 }
                 data.inputs.back().push_back(input);
                 data.labels.back().push_back(output);
@@ -244,6 +245,9 @@ namespace UnitTests
                     break;
                 case GateType::XOR:
                     output[0] = (input[0] != data.inputs.back().back()[0]);
+                    break;
+                case GateType::NAND:
+                    output[0] = !(input[0] && data.inputs.back().back()[0]);
                     break;
                 }
                 data.inputs.back().push_back(input);
@@ -358,6 +362,44 @@ namespace UnitTests
         return data;
     }
 
+    // From Elman's original paper. Seq length should be a multiple of three
+    Dataset<std::vector<VectorXd>> ElmanXORSet(int dataset_size, int seq_length)
+    {
+        std::random_device rd;
+        std::mt19937 mt(rd());
+        std::uniform_int_distribution<int> r(0, 1);
+        Dataset<std::vector<VectorXd>> data;
+        VectorXd x(1);
+        double a = 0, b = 0, y = 0;
+        for (int i = 0; i < dataset_size; ++i)
+        {
+            data.inputs.emplace_back(std::vector<VectorXd>());
+            data.labels.emplace_back(std::vector<VectorXd>());
+            data.inputs.back().emplace_back(VectorXd(1));
+            data.inputs.back().back().setZero();
+            data.labels.back().emplace_back(VectorXd(1));
+            data.labels.back().back().setZero();
+            for (int j = 0; j < seq_length/3; ++j)
+            {
+                a = r(mt);
+                b = r(mt);
+                x << a;
+                data.inputs.back().push_back(x);
+                x << b;
+                data.inputs.back().push_back(x);
+                x << (double)(a != b);
+                data.inputs.back().push_back(x);
+                std::cout << a << " " << b << " " << x[0] << std::endl;
+            }
+            data.labels.back() = data.inputs.back();
+            data.labels.back().erase(data.labels.back().begin());
+            x << r(mt);
+            data.labels.back().push_back(x);
+        }
+        
+        return data;
+    }
+
     Dataset<VectorXd> gate(int dataset_size, GateType gt)
     {
         std::random_device rd;
@@ -381,6 +423,9 @@ namespace UnitTests
                 break;
             case GateType::XOR:
                 output[0] = (input[0] != input[1]);
+                break;
+            case GateType::NAND:
+                output[0] = !(input[0] && input[1]);
                 break;
             }
             data.inputs.push_back(input);
