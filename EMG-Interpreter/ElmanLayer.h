@@ -17,7 +17,7 @@ public:
 	void applyUpdates() override;
 
 	void resize(size_t new_depth) override;
-
+	void print() override;
 private:
 
 	std::vector<VectorXd> x_history;

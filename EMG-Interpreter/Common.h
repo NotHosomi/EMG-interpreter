@@ -19,5 +19,6 @@ namespace Common
 
 	VectorXd loss(VectorXd outputs, VectorXd targets);
 	VectorXd dloss(VectorXd outputs, VectorXd targets);
+	double accuracy(VectorXd outputs, VectorXd targets);
 };
 

@@ -14,11 +14,10 @@ public:
 
 	// external utils
 	void resize(size_t new_depth);
-	void printGates();
+	void print() override;
 	bool saveCell();
 	void loadGates(MatrixXd forget, MatrixXd ignore, MatrixXd candidate, MatrixXd output);
 
-public:
 	// primary functionality
 	VectorXd feedForward(VectorXd x_t) override;
 	VectorXd backProp(VectorXd gradient, unsigned int t) override;

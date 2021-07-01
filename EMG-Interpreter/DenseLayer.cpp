@@ -75,6 +75,12 @@ void DenseLayer::resize(size_t new_depth)
 	z_history.reserve(new_depth);
 }
 
+void DenseLayer::print()
+{
+	IOFormat Fmt(4, 0, ", ", ";\n", "", "", "[", "]");
+	std::cout << "w:\n" << w.format(Fmt) << std::endl;
+}
+
 // reset memory, excluding weights
 void DenseLayer::clearCaches()
 {

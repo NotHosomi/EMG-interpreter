@@ -1,7 +1,7 @@
 #include "Common.h"
 #include <iostream>
 
-#pragma region ACTIVATION_FUNC
+#pragma region NONLINEARITIES
 
 double Common::sigmoid(double x)
 {
@@ -28,8 +28,11 @@ double Common::dtangent(double x)
 }
 #pragma endregion
 
-#pragma region LOSS_FUNC
+#pragma region METRICS
 
+// Multiclass Binary Cross-Entropy
+// CE = T log(y) + (1 - t) log(1-y)
+// dCE = -(T / y) + (1 - T) / (1 - y)
 VectorXd Common::loss(VectorXd outputs, VectorXd targets)
 {
     double eps = 1e-8; // epsilon, used to prevent log(0) (NaN)
@@ -62,10 +65,17 @@ VectorXd Common::dloss(VectorXd outputs, VectorXd targets)
         else if (outputs[i] == 1)
             outputs[i] -= eps;
 
-        // Unifier
-        float unifier = 2 * targets[i] - 1;
+#ifdef UNIFIER
         // traditional + unifier
+        double unifier = 2 * targets[i] - 1; // will either be 1 or -1
         dloss[i] = -(targets[i] / outputs[i]) + (1 - targets[i]) / (1 - outputs[i]) + unifier;
+#else
+        dloss[i] = -(targets[i] / outputs[i]) + (1 - targets[i]) / (1 - outputs[i]);
+#endif
+
+        //double unifier = 2 * targets[i] - 1; // will either be 1 or -1
+        // traditional + unifier
+        dloss[i] = -(targets[i] / outputs[i]) + (1 - targets[i]) / (1 - outputs[i]);// +unifier;
     }
 #ifdef PRINT_DLOSS
     std::cout << "dloss:\t" << dloss << "\nY\t" << outputs << "\nT\t" << targets << std::endl;
@@ -73,7 +83,13 @@ VectorXd Common::dloss(VectorXd outputs, VectorXd targets)
     return dloss;
 }
 
-// Multiclass Binary Cross-Entropy
-// CE = T log(y) + (1 - t) log(1-y)
-// dCE = -(T / y) + (1 - T) / (1 - y)
+double Common::accuracy(VectorXd outputs, VectorXd targets)
+{
+    double diff = 0;
+    for (int i = 0; i < outputs.size(); ++i)
+    {
+        diff += abs(outputs[i] - targets[i]);
+    }
+    return diff / outputs.size();
+}
 #pragma endregion

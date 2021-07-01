@@ -279,7 +279,7 @@ void Lstm::applyUpdates()
 	clearCaches();
 }
 
-void Lstm::printGates()
+void Lstm::print()
 {
 	IOFormat Fmt(4, 0, ", ", ";\n", "", "", "[", "]");
 	std::cout << "f:\n" << f.format(Fmt) << std::endl;
@@ -308,7 +308,7 @@ void Lstm::resize(size_t new_depth)
 // TODO: test this
 bool Lstm::saveCell()
 {
-	printGates();
+	print();
 	std::string filename;
 	std::cout << "\nSave to: ";
 	std::cin >> filename;

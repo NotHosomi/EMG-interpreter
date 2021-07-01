@@ -13,26 +13,19 @@
 
 #define RNN 1
 #define DNN !RNN
-#define RNN_TEST 0
+#define RNN_TEST 1
 #define RNN_LOADING 0
 #define LOGGING 1
 #define LOG_NEW_FILE 0
 
-
-MatrixXd mtable(VectorXd rows, RowVectorXd cols)
-{
-    return rows.replicate(1, cols.size()).cwiseProduct(
-        cols.replicate(rows.size(), 1)
-    );
-}
-
 int main()
 {
     // Eigen's matrix random init uses rand()
-    srand(time(0));
+    srand(static_cast<int>(time(0)));
 #if RNN
 #pragma region BUILD NET
 
+    std::cout << "Building model" << std::endl;
 #if RNN_LOADING
     RecurrentNetwork* rnn;
     std::string fileaddress;
@@ -51,8 +44,16 @@ int main()
         rnn = new RecurrentNetwork(INPUT_SIZE, LABEL_SIZE, 0.15);
     }
 #else
-    RecurrentNetwork* rnn = new RecurrentNetwork();
-    std::string fileaddress;
+#if !RNN_TEST
+    RecurrentNetwork* rnn = new RecurrentNetwork(new Lstm(1, 16, 0.15), 0.15);
+    rnn->addLayer('L', 16);
+    rnn->addLayer('D', 3);
+#else
+    RecurrentNetwork* rnn = new RecurrentNetwork(1, 0.15);
+    rnn->addLayer('L', 6);
+    rnn->addLayer('L', 6);
+    rnn->addLayer('D', 3);
+#endif
 #endif
 #pragma endregion
 
@@ -60,30 +61,36 @@ int main()
 
 #if !RNN_TEST
     std::ifstream data_file;
-    while (1)
+    //std::string fileaddress;
+    //while (1)
+    //{
+    //    std::cout << "Signal File: ";
+    //    std::cin >> fileaddress;
+    //    data_file.open("data/" + fileaddress + ".emg");
+    //    if (data_file)
+    //    {
+    //        break;
+    //    }
+    //    std::cout << "Failed to open file 'data/" << fileaddress << ".emg'" << std::endl;
+    //}
+    data_file.open("data/bulk.emg");
+    if (!data_file)
     {
-        std::cout << "Signal File: ";
-        std::cin >> fileaddress;
-        data_file.open("data/" + fileaddress + ".emg");
-        if (data_file)
-        {
-            break;
-        }
-        std::cout << "Failed to open file 'data/" << fileaddress << ".emg'" << std::endl;
+        std::cout << "Failed to open file 'data/bulk.emg'" << std::endl;
     }
+
     std::cout << "Mounting signal data..." << std::endl;
 
     // 8 = input
     std::vector<int> values;
-    std::vector<std::vector<VectorXd>> input_sequences;
-    std::vector<std::vector<VectorXd>> label_sequences;
+    Dataset<std::vector<VectorXd>> train_set;
     std::string line;
     int seq_id = -1;
     while (std::getline(data_file, line))
     {
         ++seq_id;
-        input_sequences.emplace_back();
-        label_sequences.emplace_back();
+        train_set.inputs.emplace_back();
+        train_set.labels.emplace_back();
         std::string sample;
         std::stringstream linestream(line);
         while (getline(linestream, sample, '!'))
@@ -101,8 +108,8 @@ int main()
                     std::cout << "BAD SAMPLE: \"" << sample << "\" in sequence " << seq_id << " of file" << std::endl;
                     values.clear();
                     // TODO: Do I need to pop back of input/label sequences??
-                    input_sequences.pop_back();
-                    label_sequences.pop_back();
+                    train_set.inputs.pop_back();
+                    train_set.labels.pop_back();
                     // Yes yes, I know GOTO is bad, but its the cleanest way to escape nested loops
                     goto panic;
                 }
@@ -114,7 +121,7 @@ int main()
                 input[i] = values[i];
             }
             input /= 1024.0; // 1024 is the range of the Myoware signal output
-            input_sequences.back().emplace_back(input);
+            train_set.inputs.back().emplace_back(input);
 
             VectorXd label(LABEL_SIZE);
             label.setZero();
@@ -122,7 +129,7 @@ int main()
             {
                 label[i] = values[i + INPUT_SIZE];
             }
-            label_sequences.back().emplace_back(label);
+            train_set.labels.back().emplace_back(label);
 
             values.clear();
         }
@@ -131,61 +138,52 @@ int main()
     }
     data_file.close();
     std::cout << "Signal data mounted" << std::endl;
+
+    //train_set.shuffle();
+    Dataset<std::vector<VectorXd>> test_set = train_set.split(0.9);
+    std::cout << "Train split:\t" << train_set.inputs.size()
+        << "\tTest split:\t" << test_set.inputs.size() << std::endl;
 #else
     //std::vector<Dataset<std::vector<VectorXd>>> batches;
     //for (int i = 0; i < 10; ++i)
     //    batches.push_back(UnitTests::MealSequence(30, 30));
-    Dataset<std::vector<VectorXd>> train = UnitTests::MealSequence(1000, 100);
-    Dataset<std::vector<VectorXd>> test = UnitTests::MealSequence(400, 20);
+    Dataset<std::vector<VectorXd>> train_set = UnitTests::MealSequence(500, 50);
+    Dataset<std::vector<VectorXd>> test_set = UnitTests::MealSequence(100, 20);
 
-    //Dataset<std::vector<VectorXd>> train = UnitTests::LstmDebugA(80, 10);
-    //Dataset<std::vector<VectorXd>> test = UnitTests::LstmDebugA(20, 10);
+    //Dataset<std::vector<VectorXd>> train_set = UnitTests::LstmDebugA(80, 10);
+    //Dataset<std::vector<VectorXd>> test_set = UnitTests::LstmDebugA(20, 10);
     
-    //Dataset<std::vector<VectorXd>> train = UnitTests::LstmMaximizer(80, 10, 4, 1, false);
-    //Dataset<std::vector<VectorXd>> test = UnitTests::LstmMaximizer(20, 10, 4, 1, false);
+    //Dataset<std::vector<VectorXd>> train_set = UnitTests::LstmMaximizer(80, 10, 4, 1, false);
+    //Dataset<std::vector<VectorXd>> test_set = UnitTests::LstmMaximizer(20, 10, 4, 1, false);
      
-    //Dataset<std::vector<VectorXd>> train = UnitTests::SeqSingle(800, UnitTests::GateType::AND);
-    //Dataset<std::vector<VectorXd>> test = UnitTests::SeqSingle(200, UnitTests::GateType::AND);
+    //Dataset<std::vector<VectorXd>> train_set = UnitTests::SeqSingle(800, UnitTests::GateType::AND);
+    //Dataset<std::vector<VectorXd>> test_set = UnitTests::SeqSingle(200, UnitTests::GateType::AND);
 
-    //Dataset<std::vector<VectorXd>> train = UnitTests::SeqGates(120, 10, UnitTests::GateType::AND);
-    //Dataset<std::vector<VectorXd>> test = UnitTests::SeqGates(20, 10, UnitTests::GateType::AND);
+    //Dataset<std::vector<VectorXd>> train_set = UnitTests::SeqGates(120, 10, UnitTests::GateType::AND);
+    //Dataset<std::vector<VectorXd>> test_set = UnitTests::SeqGates(20, 10, UnitTests::GateType::AND);
 
-    //Dataset<std::vector<VectorXd>> train = UnitTests::Toggle(120, 10);
-    //Dataset<std::vector<VectorXd>> test = UnitTests::Toggle(20, 10);
+    //Dataset<std::vector<VectorXd>> train_set = UnitTests::Toggle(120, 10);
+    //Dataset<std::vector<VectorXd>> test_set = UnitTests::Toggle(20, 10);
 
-    //Dataset<std::vector<VectorXd>> train = UnitTests::SeqGatesLinked(2, 2, UnitTests::GateType::AND);
-    //Dataset<std::vector<VectorXd>> test = UnitTests::SeqGatesLinked(5, 100, UnitTests::GateType::AND);
+    //Dataset<std::vector<VectorXd>> train_set = UnitTests::SeqGatesLinked(20, 20, UnitTests::GateType::NAND);
+    //Dataset<std::vector<VectorXd>> test_set = UnitTests::SeqGatesLinked(5, 20, UnitTests::GateType::NAND);
+
+    //Dataset<std::vector<VectorXd>> train_set = UnitTests::ElmanXORSet(500, 20);
+    //Dataset<std::vector<VectorXd>> test_set = UnitTests::ElmanXORSet(50, 13);
     
-    //Dataset<std::vector<VectorXd>> train = UnitTests::Noise(80, 10, 4, 1); 
-    //Dataset<std::vector<VectorXd>> test = UnitTests::Noise(20, 10, 4, 1);
+    //Dataset<std::vector<VectorXd>> train_set = UnitTests::Noise(80, 10, 4, 1); 
+    //Dataset<std::vector<VectorXd>> test_set = UnitTests::Noise(20, 10, 4, 1);
 #endif
 
 #pragma endregion
 
 #pragma region BEGIN LOG
-#if LOGGING
-    std::string filename;
-#if LOG_NEW_FILE
-    std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
-    time_t tt = std::chrono::system_clock::to_time_t(now);
-    tm time;
-    localtime_s(&time, &tt);
-    filename = std::to_string(time.tm_year + 1900) + "-"
-        + std::to_string(time.tm_mon + 1) + "-"
-        + std::to_string(time.tm_mday) + "_"
-        + std::to_string(time.tm_hour) + "-"
-        + std::to_string(time.tm_min) + "-"
-        + std::to_string(time.tm_sec);
-    std::ofstream log("logs/" + filename + ".txt", std::ios::trunc);
-#else
-    std::ofstream log("logs/log.txt", std::ios::trunc);
-#endif
+    std::ofstream log("logs/loss.txt", std::ios::trunc);
     if (!log)
     {
-        std::cout << "Failed to open file " << filename << ".txt" << std::endl;
-        return 0xBAADDA7E;
+        std::cout << "Failed to open file 'logs/loss.txt'" << std::endl;
+        return 3;
     }
-#endif
 #pragma endregion
 
 #pragma region TRAIN NET
@@ -201,44 +199,44 @@ int main()
         double train_err = 0;
         double test_err = 0;
         // Train
-        //err = rnn->trainSeqBatch(batches[epoch].inputs, batches[epoch].labels);
-        train_err = rnn->trainSeqBatch(input_sequences, label_sequences);
+        train_err = rnn->trainSet(train_set);
         std::cout << std::to_string(train_err) << std::endl;
         // Test
-        //test_err = rnn->evalSeqBatch(test.inputs, test.labels);
-        //std::cout << std::to_string(test_err) << std::endl;
+        test_err = rnn->evalSet(test_set);
+        std::cout << std::to_string(test_err) << std::endl;
 #if LOGGING
         log << std::to_string(train_err) << " ";
         log << std::to_string(test_err) << " ";
 #endif
-        //if (test_err < 0.0002)
-        //{
-        //    if (stable_stop_counter++ > stable_stop_threshold)
-        //    {
-        //        std::cout << "Sufficiently stable. Stopping." << std::endl;
-        //        break;
-        //    }
-        //}
-        //else
-        //{
-        //    stable_stop_counter = 0;
-        //}
-        //avrg = ((float)test_err + avrg * epoch) / (epoch + 1);
-        //devi = abs((float)test_err - avrg);
-        //if (devi < 0.1)
-        //{
-        //    if (devi_stop_counter++ > devi_stop_threshold)
-        //    {
-        //        std::cout << "No deviation in 50 epochs. Stopping." << std::endl;
-        //        break;
-        //    }
-        //    else
-        //    {
-        //        devi_stop_counter = 0;
-        //    }
-        //}
+        if (test_err < 0.0002)
+        {
+            if (stable_stop_counter++ > stable_stop_threshold)
+            {
+                std::cout << "Sufficiently stable. Stopping." << std::endl;
+                break;
+            }
+        }
+        else
+        {
+            stable_stop_counter = 0;
+        }
+        avrg = ((float)test_err + avrg * epoch) / (epoch + 1);
+        devi = abs((float)test_err - avrg);
+        if (devi < 0.1)
+        {
+            if (devi_stop_counter++ > devi_stop_threshold)
+            {
+                std::cout << "No deviation in 50 epochs. Stopping." << std::endl;
+                break;
+            }
+            else
+            {
+                devi_stop_counter = 0;
+            }
+        }
+        //train_set.shuffle();
     }
-
+    rnn->print();
 #pragma endregion
 
 
@@ -271,3 +269,7 @@ int main()
 
     return 0;
 }
+
+
+
+

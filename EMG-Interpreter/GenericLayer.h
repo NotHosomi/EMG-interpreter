@@ -18,6 +18,10 @@ public:
 
 	virtual void resize(size_t new_depth) = 0;
 
+	int getInputSize() { return INPUT_SIZE; };
+	int getOutputSize() { return OUTPUT_SIZE; };
+
+	virtual void print() = 0;
 protected:
 	int INPUT_SIZE; // not const, but these two should never change after construction
 	int OUTPUT_SIZE; // could const these and have loadCell() be a static that returns a new Lstm

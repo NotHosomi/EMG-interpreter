@@ -2,34 +2,65 @@
 #include <iostream>
 #include "Common.h"
 #include <assert.h>
+#include <fstream>
 
-//#define CROSS_ENTROPY
 
-//RecurrentNetwork::RecurrentNetwork(std::vector<std::tuple<char, int>> topology, int input_size)
-RecurrentNetwork::RecurrentNetwork()
+RecurrentNetwork::RecurrentNetwork(GenericLayer* first_layer, double _alpha)
 {
-    //INPUT_SIZE = input_size;
-    //OUTPUT_SIZE = std::get<1>(topology.back());
-    //
-    //for (auto& L : topology)
-    //{
-    //
-    //}
-}
+    alpha = _alpha;
+    INPUT_SIZE = first_layer->getInputSize();
+    OUTPUT_SIZE = first_layer->getOutputSize();
+    layers.push_back(first_layer);
 
-// Takes one input & one label sequence.
-void RecurrentNetwork::train(std::vector<VectorXd> inputs, std::vector<VectorXd> labels)
-{
-    resize(inputs.size());
-    for (auto& input : inputs)
+#if LOG_ACC
+    acc_log.open("logs/accuracy.txt", std::ios::trunc);
+    if (!acc_log)
     {
-        feedForward(input);
+        std::cout << "Failed to open file logs/accuracy.txt" << std::endl;
     }
-    backProp(labels);
+#endif
 }
+RecurrentNetwork::RecurrentNetwork(int input_size, double _alpha)
+{
+    alpha = _alpha;
+    INPUT_SIZE = input_size;
+    OUTPUT_SIZE = input_size;
+
+#if LOG_ACC
+    acc_log.open("logs/accuracy.txt", std::ios::trunc);
+    if (!acc_log)
+    {
+        std::cout << "Failed to open file logs/accuracy.txt" << std::endl;
+    }
+#endif
+}
+
+RecurrentNetwork::~RecurrentNetwork()
+{
+#if LOG_ACC
+    acc_log.close();
+#endif
+}
+
+void RecurrentNetwork::addLayer(char layer_type, int output_size)
+{
+    switch (layer_type)
+    {
+    case 'D': layers.emplace_back(new DenseLayer(OUTPUT_SIZE, output_size, alpha));
+        break;
+    case 'L': layers.emplace_back(new Lstm(OUTPUT_SIZE, output_size, alpha));
+        break;
+    case 'E': layers.emplace_back(new ElmanLayer(OUTPUT_SIZE, output_size, alpha));
+        break;
+    default: std::cout << "Invalid layer type " << layer_type << "\t(D, L, E)" << std::endl;
+        return;
+    }
+    OUTPUT_SIZE = layers.back()->getOutputSize();
+}
+
 
 // Takes one input & one label sequence. Returns average loss.
-double RecurrentNetwork::trainEx(std::vector<VectorXd> inputs, std::vector<VectorXd> labels)
+double RecurrentNetwork::trainSeq(std::vector<VectorXd> inputs, std::vector<VectorXd> labels)
 {
     resize(inputs.size());
     double net_loss = 0;
@@ -44,23 +75,59 @@ double RecurrentNetwork::trainEx(std::vector<VectorXd> inputs, std::vector<Vecto
 }
 
 // Takes input & label sequences. Returns average loss.
-double RecurrentNetwork::trainSeqBatch(std::vector<std::vector<VectorXd>> input_sequences, std::vector<std::vector<VectorXd>> label_sequences)
+double RecurrentNetwork::trainSet(Dataset<std::vector<VectorXd>> data)
 {
     double net_loss = 0;
-    for (int seq = 0; seq < input_sequences.size(); ++seq)
+#if LOG_ACC
+    double local_acc = 0;
+    double net_acc = 0;
+#endif
+    for (int seq = 0; seq < data.inputs.size(); ++seq)
     {
-        double local_loss = 0;
-        resize(input_sequences[seq].size());
-        for (int i = 0; i < input_sequences[seq].size(); ++i)
+#if LOG_SEQ
+        std::ofstream log_seq("logs/train_seqs/seq_" + std::to_string(seq) + ".txt", std::ios::trunc);
+        if (!log_seq)
         {
-            VectorXd outputs = feedForward(input_sequences[seq][i]);
-            local_loss += Common::loss(outputs, label_sequences[seq][i]).sum() / OUTPUT_SIZE;
+            std::cout << "Failed to open file logs/train_seq_" + std::to_string(seq) + ".txt" << std::endl;
+            return -1;
         }
-        backProp(label_sequences[seq]);
-        local_loss /= input_sequences[seq].size();
+        log_seq << data.labels[seq].back().size() << " ";
+#endif
+        double local_loss = 0;
+        resize(data.inputs[seq].size());
+        for (int i = 0; i < data.inputs[seq].size(); ++i)
+        {
+            VectorXd outputs = feedForward(data.inputs[seq][i]);
+            local_loss += Common::loss(outputs, data.labels[seq][i]).sum() / OUTPUT_SIZE;
+
+#if LOG_SEQ
+            for (int j = 0; j < OUTPUT_SIZE; ++j)
+            {
+                log_seq << outputs[j] << " "
+                    << data.labels[seq][i][j] << " ";
+            }
+#endif
+#if LOG_ACC
+            local_acc += Common::accuracy(outputs, data.labels[seq][i]);
+#endif
+        }
+
+#if LOG_SEQ
+        log_seq.close();
+#endif
+#if LOG_ACC
+        net_acc += local_acc;
+        local_acc = 0;
+#endif
+
+        backProp(data.labels[seq]);
+        local_loss /= data.inputs[seq].size();
         net_loss += local_loss;
     }
-    net_loss /= input_sequences.size();
+#if LOG_ACC
+    acc_log << net_acc << " ";
+#endif
+    net_loss /= data.inputs.size();
     return net_loss;
 }
 
@@ -77,33 +144,83 @@ double RecurrentNetwork::evalSeq(std::vector<VectorXd> inputs, std::vector<Vecto
     return net_loss;
 }
 
-double RecurrentNetwork::evalSeqBatch(std::vector<std::vector<VectorXd>> input_sequences, std::vector<std::vector<VectorXd>> label_sequences)
+double RecurrentNetwork::evalSet(Dataset<std::vector<VectorXd>> data)
 {
     double net_loss = 0;
-    for (int seq = 0; seq < input_sequences.size(); ++seq)
+#if LOG_ACC
+    double local_acc = 0;
+    double net_acc = 0;
+#endif
+    for (int seq = 0; seq < data.inputs.size(); ++seq)
     {
-        double local_loss = 0;
-        resize(input_sequences[seq].size());
-        for (int i = 0; i < input_sequences[seq].size(); ++i)
+#if LOG_SEQ
+        std::ofstream log_seq("logs/test_seqs/seq_" + std::to_string(seq) + ".txt", std::ios::trunc);
+        if (!log_seq)
         {
-            VectorXd outputs = feedForward(input_sequences[seq][i]);
-            local_loss += Common::loss(outputs, label_sequences[seq][i]).sum() / OUTPUT_SIZE;
+            std::cout << "Failed to open file logs/test_seq_" + std::to_string(seq) + ".txt" << std::endl;
+            return -1;
         }
-        local_loss /= input_sequences[seq].size();
+        log_seq << data.labels[seq].back().size() << " ";
+#endif
+        double local_loss = 0;
+        resize(data.inputs[seq].size());
+        for (int i = 0; i < data.inputs[seq].size(); ++i)
+        {
+            VectorXd outputs = feedForward(data.inputs[seq][i]);
+            local_loss += Common::loss(outputs, data.labels[seq][i]).sum() / OUTPUT_SIZE;
+
+#if LOG_SEQ
+            for (int j = 0; j < OUTPUT_SIZE; ++j)
+            {
+                log_seq << outputs[j] << " "
+                    << data.labels[seq][i][j] << " ";
+            }
+#endif
+#if LOG_ACC
+            local_acc += Common::accuracy(outputs, data.labels[seq][i]);
+#endif
+        }
+#if LOG_SEQ
+        log_seq.close();
+#endif
+#if LOG_ACC
+        net_acc += local_acc;
+        local_acc = 0;
+#endif
+
+        local_loss /= data.inputs[seq].size();
         net_loss += local_loss;
     }
-    net_loss /= input_sequences.size();
+#if LOG_ACC
+    acc_log << net_acc << " ";
+#endif
+    net_loss /= data.inputs.size();
     return net_loss;
 }
 
+
+void RecurrentNetwork::print()
+{
+    for (auto L : layers)
+    {
+        std::cout << "\n---------------------------------------------------------" << std::endl;
+        L->print();
+    }
+    std::cout << "\n---------------------------------------------------------" << std::endl;
+}
 
 // Internals
 VectorXd RecurrentNetwork::feedForward(VectorXd input)
 {
     assert(input.size() == INPUT_SIZE && "!!! Input size mismatch !!!");
-    VectorXd activations = L1.feedForward(input);
-    activations = L2.feedForward(activations);
-    activations = L3.feedForward(activations);
+    VectorXd activations = input;
+    for (auto L : layers)
+    {
+        activations = L->feedForward(activations);
+    }
+    //activations = L1.feedForward(input);
+    //activations = L2.feedForward(activations);
+    //activations = L3.feedForward(activations);
     y_history.emplace_back(activations);
     assert(activations.size() == OUTPUT_SIZE && "!!! Output size mismatch !!!");
     return activations;
@@ -129,14 +246,22 @@ double RecurrentNetwork::backProp(std::vector<VectorXd> labels)
 #endif
         VectorXd grad = Common::dloss(y_history[t-1], labels[t-1]);
         net_cost += 2 * grad.sum() / grad.size();
-        grad = L3.backProp(grad, t);
-        grad = L2.backProp(grad, t);
-        L1.backProp(grad, t);
+        //grad = L3.backProp(grad, t);
+        //grad = L2.backProp(grad, t);
+        //L1.backProp(grad, t);
+        for (auto L = layers.rbegin(); L != layers.rend(); ++L)
+        {
+            grad = (*L)->backProp(grad, t);
+        }
     }
 
-    L1.applyUpdates();
-    L2.applyUpdates();
-    L3.applyUpdates();
+    for (auto L : layers)
+    {
+        L->applyUpdates();
+    }
+    //L1.applyUpdates();
+    //L2.applyUpdates();
+    //L3.applyUpdates();
 
     y_history.clear();
     return std::abs(net_cost) / (labels.size());// -r_limit);
@@ -144,7 +269,11 @@ double RecurrentNetwork::backProp(std::vector<VectorXd> labels)
 
 void RecurrentNetwork::resize(size_t new_depth)
 {
-    L1.resize(new_depth);
-    L2.resize(new_depth);
-    L3.resize(new_depth);
+    for (auto L : layers)
+    {
+        L->resize(new_depth);
+    }
+    //L1.resize(new_depth);
+    //L2.resize(new_depth);
+    //L3.resize(new_depth);
 }
