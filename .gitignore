@@ -360,3 +360,12 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+Py/.vscode/
+
+Py/graphs/
+
+Py/log_graphs/
+
+Py/sample_graphs/
+
+Py/sequence_log_graphs/
