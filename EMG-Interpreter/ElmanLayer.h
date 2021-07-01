@@ -2,16 +2,15 @@
 
 #include <vector>
 #include <Eigen/Dense>
-#include "Common.h"
 #include "GenericLayer.h"
 
 using namespace Eigen;
-using namespace Common;
 
-class DenseLayer : public GenericLayer
+class ElmanLayer :
+    public GenericLayer
 {
 public:
-	DenseLayer(int input_size, int output_size, double alpha);
+	ElmanLayer(int input_size, int output_size, double alpha);
 
 	VectorXd feedForward(VectorXd x_t) override;
 	VectorXd backProp(VectorXd gradient, unsigned int t) override;
@@ -26,8 +25,11 @@ private:
 	std::vector<VectorXd> z_history; // saves having to recompute Z for backprop
 	MatrixXd w;
 	MatrixXd grad;
-	MatrixXd rms_prop;
 	MatrixXd momentum;
+	MatrixXd rms_prop;
+
+	// delta from context neurons
+	VectorXd dc;
 
 	void clearCaches() override;
 };

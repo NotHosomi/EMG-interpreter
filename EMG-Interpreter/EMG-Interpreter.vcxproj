@@ -144,15 +144,25 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Common.cpp" />
+    <ClCompile Include="DeepNetwork.cpp" />
     <ClCompile Include="DenseLayer.cpp" />
+    <ClCompile Include="ElmanLayer.cpp" />
+    <ClCompile Include="GenericLayer.cpp" />
     <ClCompile Include="Lstm.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="RecurrentNetwork.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Common.h" />
+    <ClInclude Include="Dataset.h" />
+    <ClInclude Include="DeepNetwork.h" />
     <ClInclude Include="DenseLayer.h" />
+    <ClInclude Include="ElmanLayer.h" />
+    <ClInclude Include="GenericLayer.h" />
     <ClInclude Include="Lstm.h" />
     <ClInclude Include="RecurrentNetwork.h" />
+    <ClInclude Include="UnitTests.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
