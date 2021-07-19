@@ -186,10 +186,6 @@ namespace UnitTests
         {
             data.inputs.emplace_back(std::vector<VectorXd>());
             data.labels.emplace_back(std::vector<VectorXd>());
-            data.inputs.back().emplace_back(VectorXd(2));
-            data.inputs.back().back().setZero();
-            data.labels.back().emplace_back(VectorXd(1));
-            data.labels.back().back().setZero();
             for (int j = 0; j < seq_length; ++j)
             {
                 input[0] = r(mt);
@@ -253,6 +249,8 @@ namespace UnitTests
                 data.inputs.back().push_back(input);
                 data.labels.back().push_back(output);
             }
+            data.inputs.back().erase(data.inputs.back().begin());
+            data.labels.back().erase(data.inputs.back().begin());
         }
         return data;
     }
@@ -393,8 +391,7 @@ namespace UnitTests
             }
             data.labels.back() = data.inputs.back();
             data.labels.back().erase(data.labels.back().begin());
-            x << r(mt);
-            data.labels.back().push_back(x);
+            data.inputs.back().pop_back();
         }
         
         return data;

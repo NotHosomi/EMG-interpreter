@@ -17,8 +17,14 @@ public:
 	VectorXd backProp(VectorXd gradient, unsigned int t) override;
 	void applyUpdates() override;
 
+	void clearCaches() override;
 	void resize(size_t new_depth) override;
+	void loadWeights(std::ifstream& file) override;
+	void save(std::ofstream& file) override;
 	void print() override;
+	void readWeightBuffer(const std::vector<double>& theta, int& pos) override;
+	void writeWeightBuffer(std::vector<double>& theta, int& pos) override;
+	void writeUpdateBuffer(VectorXd& theta, int& pos) override;
 private:
 
 	std::vector<VectorXd> x_history;
@@ -28,7 +34,5 @@ private:
 	MatrixXd grad;
 	MatrixXd rms_prop;
 	MatrixXd momentum;
-
-	void clearCaches() override;
 };
 

@@ -10,6 +10,7 @@ f_list = os.listdir(in_dir)
 if(outname in f_list):
     f_list.remove(in_dir)
 
+n = 0
 with open(out_dir + '/' + outname, 'w') as out:
     for f_name in f_list:
         if(".emg" in f_name):
@@ -19,7 +20,7 @@ with open(out_dir + '/' + outname, 'w') as out:
                 for line in f:
                     out.write(line)
                     sequences += 1
-
+                    n += len(line.split('!'))
                     # error detection
                     ErrA = line.find("--")
                     ErrB = line.find("-!")
@@ -45,4 +46,4 @@ with open(out_dir + '/' + outname, 'w') as out:
             print("incorrect filetype found. Are you sure you selected the right folder?")
 
 
-print("%i sequences in %i files processed" % (sequences, file_count))
+print("%i samples in %i sequences in %i files processed" % (n, sequences, file_count))

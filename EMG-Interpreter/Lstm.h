@@ -10,21 +10,24 @@ class Lstm : public GenericLayer
 {
 public:
 	Lstm(int input_size, int output_size, double alpha);
-	Lstm(std::ifstream& file, double alpha);
 
 	// external utils
 	void resize(size_t new_depth);
 	void print() override;
-	bool saveCell();
+	void loadWeights(std::ifstream& file) override;
 	void loadGates(MatrixXd forget, MatrixXd ignore, MatrixXd candidate, MatrixXd output);
+	void save(std::ofstream& file) override;
 
 	// primary functionality
 	VectorXd feedForward(VectorXd x_t) override;
 	VectorXd backProp(VectorXd gradient, unsigned int t) override;
 	void applyUpdates() override;
-
-private:
 	void clearCaches() override;
+	
+	void readWeightBuffer(const std::vector<double>& theta, int& pos) override;
+	void writeWeightBuffer(std::vector<double>& theta, int& pos) override;
+	void writeUpdateBuffer(VectorXd& theta, int& pos) override;
+private:
 
 	// Cell IO
 	std::vector<VectorXd> x_history;

@@ -60,10 +60,10 @@ def draw(filename, subdir) :
         plt.close()
 
 
-##local_dir = "train_seqs/"
-##f_list = os.listdir(log_dir + local_dir)
-##for f in f_list :
-##    draw(f, local_dir)
+#local_dir = "train_seqs/"
+#f_list = os.listdir(log_dir + local_dir)
+#for f in f_list :
+#    draw(f, local_dir)
 local_dir = "test_seqs/"
 f_list = os.listdir(log_dir + local_dir)
 for f in f_list :

@@ -27,59 +27,6 @@ Lstm::Lstm(int input_size, int output_size, double alpha) :
 	clearCaches();
 }
 
-/*
-Lstm::Lstm(std::ifstream& file, double alpha) :
-	alpha(alpha)
-{
-	file.read(reinterpret_cast<char*>(&INPUT_SIZE), sizeof(unsigned int));
-	file.read(reinterpret_cast<char*>(&OUTPUT_SIZE), sizeof(unsigned int));
-
-	f = MatrixXd(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1);
-	i = MatrixXd(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1);
-	c = MatrixXd(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1);
-	o = MatrixXd(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1);
-
-	std::for_each(f.data(), f.data() + f.size(), [&file](double& val)
-		{ file.read(reinterpret_cast<char*>(&val), sizeof(double)); });
-	std::for_each(i.data(), i.data() + i.size(), [&file](double& val)
-		{ file.read(reinterpret_cast<char*>(&val), sizeof(double)); });
-	std::for_each(c.data(), c.data() + c.size(), [&file](double& val)
-		{ file.read(reinterpret_cast<char*>(&val), sizeof(double)); });
-	std::for_each(o.data(), o.data() + o.size(), [&file](double& val)
-		{ file.read(reinterpret_cast<char*>(&val), sizeof(double)); });
-
-	// same as normal constructor
-	VectorXd empt(INPUT_SIZE);
-	empt.setZero();
-	x_history.emplace_back(empt);
-	empt = VectorXd(OUTPUT_SIZE);
-	empt.setZero();
-	cs_history.emplace_back(empt);
-	hs_history.emplace_back(empt);
-	f_history.emplace_back(empt);
-	i_history.emplace_back(empt);
-	c_history.emplace_back(empt);
-	c_history.emplace_back(empt);
-	o_history.emplace_back(empt);
-	fz_history.emplace_back(empt);
-	iz_history.emplace_back(empt);
-	cz_history.emplace_back(empt);
-	oz_history.emplace_back(empt);
-	Gf.setZero(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1);
-	Gi.setZero(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1);
-	Gc.setZero(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1);
-	Go.setZero(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1);
-
-
-	dcs.setZero(OUTPUT_SIZE);
-	dhs.setZero(OUTPUT_SIZE);
-	tfu.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1); // + 1 (bias)
-	tiu.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1); // + 1 (bias)
-	tcu.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1); // + 1 (bias)
-	tou.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1); // + 1 (bias)
-}
-*/
-
 VectorXd Lstm::feedForward(VectorXd x_t)
 {
 	VectorXd in(INPUT_SIZE + OUTPUT_SIZE + 1); // + 1; (bias)
@@ -305,26 +252,49 @@ void Lstm::resize(size_t new_depth)
 	hs_history.reserve(new_depth);
 }
 
-// TODO: test this
-bool Lstm::saveCell()
+void Lstm::loadWeights(std::ifstream& file)
 {
-	print();
-	std::string filename;
-	std::cout << "\nSave to: ";
-	std::cin >> filename;
-	std::ofstream file;
-	file.open("nets/" + filename + ".dat", std::ios::binary | std::ios::out | std::ios::trunc);
-	if (!file)
-	{
-		std::cout << "Failed to open 'nets/" << filename << ".dat'" << std::endl;
-		return false;
-	}
+	// sanity check matrix sizes
+	f = MatrixXd(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1);
+	i = MatrixXd(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1);
+	c = MatrixXd(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1);
+	o = MatrixXd(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1);
 
-	// all matrix dimensions should be homogenous
-	int x = INPUT_SIZE;
-	file.write(reinterpret_cast<char*>(&x), sizeof(int));
-	int y = OUTPUT_SIZE;
-	file.write(reinterpret_cast<char*>(&y), sizeof(int));
+	std::for_each(f.data(), f.data() + f.size(), [&file](double& val)
+		{
+			file.read(reinterpret_cast<char*>(&val), sizeof(double));
+		});
+	//std::cout << "\nMatrix (" << i.cols() << "," << i.rows() << "), pos: " << file.tellg() << std::endl;
+	std::for_each(i.data(), i.data() + i.size(), [&file](double& val)
+		{ file.read(reinterpret_cast<char*>(&val), sizeof(double));
+			//std::cout << val << "\t";
+		});
+	//std::cout << "\nMatrix (" << c.cols() << "," << c.rows() << "), pos: " << file.tellg() << std::endl;
+	std::for_each(c.data(), c.data() + c.size(), [&file](double& val)
+		{ file.read(reinterpret_cast<char*>(&val), sizeof(double));
+			//std::cout << val << "\t";
+		});
+	//std::cout << "\nMatrix (" << o.cols() << "," << o.rows() << "), pos: " << file.tellg() << std::endl;
+	std::for_each(o.data(), o.data() + o.size(), [&file](double& val)
+		{ file.read(reinterpret_cast<char*>(&val), sizeof(double));
+			//std::cout << val << "\t";
+		});
+	//std::cout << "Layer end pos: " << file.tellg() << std::endl;
+}
+
+void Lstm::loadGates(MatrixXd forget, MatrixXd ignore, MatrixXd candidate, MatrixXd output)
+{
+	f = forget;
+	i = ignore;
+	c = candidate;
+	o = output;
+}
+
+void Lstm::save(std::ofstream& file)
+{
+	char type = 'L';
+	file.write(reinterpret_cast<char*>(&type), sizeof(char));
+	file.write(reinterpret_cast<char*>(&OUTPUT_SIZE), sizeof(int));
 
 	std::for_each(f.data(), f.data() + f.size(), [&file](double val)
 		{ file.write(reinterpret_cast<char*>(&val), sizeof(double)); });
@@ -334,19 +304,6 @@ bool Lstm::saveCell()
 		{ file.write(reinterpret_cast<char*>(&val), sizeof(double)); });
 	std::for_each(o.data(), o.data() + o.size(), [&file](double val)
 		{ file.write(reinterpret_cast<char*>(&val), sizeof(double)); });
-
-
-	std::cout << "\nSaved to 'nets/" + filename + ".dat'" << std::endl;
-	file.close();
-	return true;
-}
-
-void Lstm::loadGates(MatrixXd forget, MatrixXd ignore, MatrixXd candidate, MatrixXd output)
-{
-	f = forget;
-	i = ignore;
-	c = candidate;
-	o = output;
 }
 
 // reset all LSTM memory, excluding weights
@@ -414,4 +371,76 @@ void Lstm::evalUpdates(MatrixXd gate, MatrixXd updates, char name)
 		std::cout << " " << (int)(gate.data()[i] < target[i] && updates.data()[i] < 0);
 	}
 	std::cout << std::endl;
+}
+
+void Lstm::readWeightBuffer(const std::vector<double>& theta, int& pos)
+{
+	std::for_each(f.data(), f.data() + f.size(), [theta, &pos](double& val)
+		{
+			val = theta[pos];
+			++pos;
+		});
+	std::for_each(i.data(), i.data() + i.size(), [theta, &pos](double& val)
+		{
+			val = theta[pos];
+			++pos;
+		});
+	std::for_each(c.data(), c.data() + c.size(), [theta, &pos](double& val)
+		{
+			val = theta[pos];
+			++pos;
+		});
+	std::for_each(o.data(), o.data() + o.size(), [theta, &pos](double& val)
+		{
+			val = theta[pos];
+			++pos;
+		});
+}
+
+void Lstm::writeWeightBuffer(std::vector<double>& theta, int& pos)
+{
+	std::for_each(f.data(), f.data() + f.size(), [&theta, &pos](double val)
+		{
+			theta.push_back(val);
+			++pos;
+		});
+	std::for_each(i.data(), i.data() + i.size(), [&theta, &pos](double val)
+		{
+			theta.push_back(val);
+			++pos;
+		});
+	std::for_each(c.data(), c.data() + c.size(), [&theta, &pos](double val)
+		{
+			theta.push_back(val);
+			++pos;
+		});
+	std::for_each(o.data(), o.data() + o.size(), [&theta, &pos](double val)
+		{
+			theta.push_back(val);
+			++pos;
+		});
+}
+
+void Lstm::writeUpdateBuffer(VectorXd& theta, int& pos)
+{
+	std::for_each(tfu.data(), tfu.data() + tfu.size(), [&theta, &pos](double val)
+		{
+			theta[pos] = val;
+			++pos;
+		});
+	std::for_each(tiu.data(), tiu.data() + tiu.size(), [&theta, &pos](double val)
+		{
+			theta[pos] = val;
+			++pos;
+		});
+	std::for_each(tcu.data(), tcu.data() + tcu.size(), [&theta, &pos](double val)
+		{
+			theta[pos] = val;
+			++pos;
+		});
+	std::for_each(tou.data(), tou.data() + tou.size(), [&theta, &pos](double val)
+		{
+			theta[pos] = val;
+			++pos;
+		});
 }

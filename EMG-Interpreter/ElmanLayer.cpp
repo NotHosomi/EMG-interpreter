@@ -108,6 +108,23 @@ void ElmanLayer::resize(size_t new_depth)
 	z_history.reserve(new_depth);
 }
 
+void ElmanLayer::loadWeights(std::ifstream& file)
+{
+	w = MatrixXd(OUTPUT_SIZE, INPUT_SIZE + 1);
+
+	std::for_each(w.data(), w.data() + w.size(), [&file](double& val)
+		{ file.read(reinterpret_cast<char*>(&val), sizeof(double)); });
+}
+
+void ElmanLayer::save(std::ofstream& file)
+{
+	char type = 'E';
+	file.write(reinterpret_cast<char*>(&type), sizeof(char));
+	file.write(reinterpret_cast<char*>(&OUTPUT_SIZE), sizeof(int));
+	std::for_each(w.data(), w.data() + w.size(), [&file](double val)
+		{ file.write(reinterpret_cast<char*>(&val), sizeof(double)); });
+}
+
 void ElmanLayer::print()
 {
 	IOFormat Fmt(4, 0, ", ", ";\n", "", "", "[", "]");
@@ -133,4 +150,31 @@ void ElmanLayer::clearCaches()
 	dc.setZero(OUTPUT_SIZE);
 
 	grad.setZero(OUTPUT_SIZE, OUTPUT_SIZE + INPUT_SIZE + 1);
+}
+
+void ElmanLayer::readWeightBuffer(const std::vector<double>& theta, int& pos)
+{
+	std::for_each(w.data(), w.data() + w.size(), [theta, &pos](double& val)
+		{
+			val = theta[pos];
+			++pos;
+		});
+}
+
+void ElmanLayer::writeWeightBuffer(std::vector<double>& theta, int& pos)
+{
+	std::for_each(w.data(), w.data() + w.size(), [&theta, &pos](double val)
+		{
+			theta.push_back(val);
+			++pos;
+		});
+}
+
+void ElmanLayer::writeUpdateBuffer(VectorXd& theta, int& pos)
+{
+	std::for_each(grad.data(), grad.data() + grad.size(), [&theta, &pos](double val)
+		{
+			theta[pos] = val;
+			++pos;
+		});
 }

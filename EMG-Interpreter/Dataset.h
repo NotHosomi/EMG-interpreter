@@ -9,10 +9,10 @@ struct Dataset
 
 	void shuffle()
 	{
-		int size = inputs.size();
-		for (int i = 0; i < size - 1; i++)
+		size_t size = inputs.size();
+		for (size_t i = 0; i < size - 1; i++)
 		{
-			int j = i + rand() % (size - i);
+			size_t j = i + rand() % (size - i);
 			swap(inputs[i], inputs[j]);
 			swap(labels[i], labels[j]);
 		}
