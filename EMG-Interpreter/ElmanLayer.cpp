@@ -80,6 +80,10 @@ VectorXd ElmanLayer::backProp(VectorXd gradient, unsigned int t)
 
 void ElmanLayer::applyUpdates()
 {
+	// average gradients over sequence
+	grad /= x_history.size();
+
+
 	++adam_t;
 	// Momentum
 	// Vdw = Beta1 * Vdw + (1 - Beta1) * dw

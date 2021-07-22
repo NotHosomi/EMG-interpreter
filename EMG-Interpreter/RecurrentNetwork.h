@@ -39,7 +39,9 @@ public:
 
 	void print();
 	void gradCheck(std::vector<VectorXd> inputs, std::vector<VectorXd> labels);
+	void gradCheckAtT(std::vector<VectorXd> inputs, std::vector<VectorXd> labels, int timestep);
 
+	void useCheckpoints(bool useCkp);
 private:
 	VectorXd feedForward(VectorXd input);
 	double backProp(std::vector<VectorXd> labels);
@@ -56,6 +58,7 @@ private:
 	std::vector<GenericLayer*> layers;
 	std::vector<VectorXd> y_history;
 	double best_loss = 1024;
+	bool checkpoints_enabled = true;
 
 #if LOG_ACC
 	std::ofstream acc_log;

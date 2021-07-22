@@ -10,8 +10,8 @@
 
 // The Arduino writes about 70 per second
 const int POLL_TIME = 100; // ms
-const float SAMPLE_RESOLUTION = 10; // secs
-const float SAMPLE_TIME = 1 / SAMPLE_RESOLUTION;
+const float SAMPLE_RESOLUTION = 10; // per sec
+const float SAMPLE_TIME = 1 / SAMPLE_RESOLUTION; // in seconds
 
 struct sample
 {
@@ -55,38 +55,6 @@ bool truncateBuffer(char* buffer, unsigned int content_length)
     buffer[output_length] = '\0';
     return true;
 }
-#if 0
-sample buildSample(char* buffer)
-{
-    sample s;
-    // Build Labels
-    if (GetAsyncKeyState(VK_SPACE))
-        s.targets[0] = true;
-    if (GetAsyncKeyState('V'))
-        s.targets[1] = true;
-    if (GetAsyncKeyState('B'))
-        s.targets[2] = true;
-    if (GetAsyncKeyState('N'))
-        s.targets[3] = true;
-    if (GetAsyncKeyState('M'))
-        s.targets[4] = true;
-
-
-
-    /* walk through other tokens */
-    char* token = strtok(buffer, "-");
-    int i = -1;
-    while (token != NULL) {
-        ++i;
-        std::cout << token << " ";
-        s.inputs[i] = std::stoi(token);
-        token = strtok(NULL, "-");
-    }
-    std::cout << std::endl;
-
-    return s;
-}
-#endif
 
 std::string genLabels()
 {
@@ -114,26 +82,13 @@ void saveSample(const char* inputs, const std::string& labels, std::ofstream& fi
     std::cout << s << std::endl;
 }
 
-//bool parseBuffer(char* buffer, unsigned int content_length, std::ofstream& file)
-//{
-//    for (int i = 0; i < content_length; ++i)
-//    {
-//      // Alternative data collection
-//      // Store every sample in the frame, rather than just the last
-//      // This risks generating variable sample frequency, but provides more detailed data.
-//    }
-//}
-
 void run(std::ofstream& file, Serial* port)
 {
     // Prep buffers
     char buffer[256] = "";
     unsigned int buffer_size = 255;
     unsigned int length = 0;
-
     Timer tmr;
-
-    //file << "\n";
 
     // Begin read cycle
     tmr.mark();

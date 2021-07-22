@@ -96,6 +96,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="BakedDenseLayer.cpp" />
+    <ClCompile Include="BakedElmanLayer.cpp" />
+    <ClCompile Include="BakedGenericLayer.cpp" />
+    <ClCompile Include="BakedLstm.cpp" />
+    <ClCompile Include="BakedNetwork.cpp" />
     <ClCompile Include="DumbLstm.cpp" />
     <ClCompile Include="Serial.cpp" />
     <ClCompile Include="SignalParser.cpp" />
@@ -107,9 +112,15 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="BakedDenseLayer.h" />
+    <ClInclude Include="BakedElmanLayer.h" />
+    <ClInclude Include="BakedGenericLayer.h" />
+    <ClInclude Include="BakedLstm.h" />
+    <ClInclude Include="BakedNetwork.h" />
     <ClInclude Include="DumbLstm.h" />
     <ClInclude Include="Serial.h" />
     <ClInclude Include="SignalParser.h" />
+    <ClInclude Include="TimeConstants.h" />
     <ClInclude Include="Timer.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

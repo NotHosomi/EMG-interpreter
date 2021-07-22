@@ -158,6 +158,13 @@ VectorXd Lstm::backProp(VectorXd gradient, unsigned int t)
 
 void Lstm::applyUpdates()
 {
+	// average gradients over sequence
+	tfu /= x_history.size();
+	tiu /= x_history.size();
+	tcu /= x_history.size();
+	tou /= x_history.size();
+
+
 #ifdef PRINT_UPDATES
 	std::cout << "-----------------------------"
 		<< "\nF\n" << f
@@ -264,22 +271,15 @@ void Lstm::loadWeights(std::ifstream& file)
 		{
 			file.read(reinterpret_cast<char*>(&val), sizeof(double));
 		});
-	//std::cout << "\nMatrix (" << i.cols() << "," << i.rows() << "), pos: " << file.tellg() << std::endl;
 	std::for_each(i.data(), i.data() + i.size(), [&file](double& val)
 		{ file.read(reinterpret_cast<char*>(&val), sizeof(double));
-			//std::cout << val << "\t";
 		});
-	//std::cout << "\nMatrix (" << c.cols() << "," << c.rows() << "), pos: " << file.tellg() << std::endl;
 	std::for_each(c.data(), c.data() + c.size(), [&file](double& val)
 		{ file.read(reinterpret_cast<char*>(&val), sizeof(double));
-			//std::cout << val << "\t";
 		});
-	//std::cout << "\nMatrix (" << o.cols() << "," << o.rows() << "), pos: " << file.tellg() << std::endl;
 	std::for_each(o.data(), o.data() + o.size(), [&file](double& val)
 		{ file.read(reinterpret_cast<char*>(&val), sizeof(double));
-			//std::cout << val << "\t";
 		});
-	//std::cout << "Layer end pos: " << file.tellg() << std::endl;
 }
 
 void Lstm::loadGates(MatrixXd forget, MatrixXd ignore, MatrixXd candidate, MatrixXd output)

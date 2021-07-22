@@ -250,7 +250,7 @@ namespace UnitTests
                 data.labels.back().push_back(output);
             }
             data.inputs.back().erase(data.inputs.back().begin());
-            data.labels.back().erase(data.inputs.back().begin());
+            data.labels.back().erase(data.labels.back().begin());
         }
         return data;
     }

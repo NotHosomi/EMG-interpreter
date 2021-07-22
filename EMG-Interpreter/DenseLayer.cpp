@@ -34,7 +34,7 @@ VectorXd DenseLayer::backProp(VectorXd gradient, unsigned int t)
 {
 	//VectorXd da_dz = z_history[t].unaryExpr(&dsigmoid);
 	VectorXd de_dz = z_history[t].unaryExpr(&dsigmoid).cwiseProduct(gradient);
-	std::cout << "\ndz:\n" << de_dz << "\nX:\n" << x_history[t] << std::endl;
+	//std::cout << "\ndz:\n" << de_dz << "\nX:\n" << x_history[t] << std::endl;
 	MatrixXd de_dw = de_dz * x_history[t].transpose();
 
 	grad += de_dw;
@@ -48,6 +48,9 @@ VectorXd DenseLayer::backProp(VectorXd gradient, unsigned int t)
 // Epsilon: 10^-8
 void DenseLayer::applyUpdates()
 {
+	// average gradients over sequence
+	grad /= x_history.size();
+
 	++adam_t;
 	// Momentum
 	// Vdw = Beta1 * Vdw + (1 - Beta1) * dw
@@ -80,15 +83,9 @@ void DenseLayer::loadWeights(std::ifstream& file)
 {
 	w = MatrixXd(OUTPUT_SIZE, INPUT_SIZE + 1);
 
-	//std::cout << "Layer start pos: " << file.tellg() << std::endl;
-	//std::cout << "Matrix (" << w.cols() << "," << w.rows() << "), pos: " << file.tellg() << std::endl;
 	std::for_each(w.data(), w.data() + w.size(), [&file](double& val)
 		{ file.read(reinterpret_cast<char*>(&val), sizeof(double));
-			//std::cout << val << "\t";
-			//if (file.eof())
-			//	std::cout << "\npassed EOF" << std::endl;
 		});
-	//std::cout << "Layer end pos: " << file.tellg() << std::endl;
 }
 
 void DenseLayer::save(std::ofstream& file)

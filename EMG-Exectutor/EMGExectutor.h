@@ -3,6 +3,7 @@
 #include <QtWidgets/QMainWindow>
 #include "ui_EMGExectutor.h"
 #include "SignalParser.h"
+#include "BakedNetwork.h"
 #include <qtimer.h>
 
 class EMGExectutor : public QMainWindow
@@ -15,9 +16,15 @@ public:
 
 private:
     Ui::EMGExectutorClass ui;
-    SignalParser* parser = nullptr;
     QTimer* refresh;
     bool hasModel = false;
+    bool isRunning = false;
+
+    SignalParser* parser = nullptr;
+    BakedNetwork* rnn = nullptr; 
+
+    std::thread parse_thread;
+    std::thread net_thread;
 
 private slots:
     void connectPressed();

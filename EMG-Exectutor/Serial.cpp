@@ -54,18 +54,17 @@ Serial::Serial(const char* portName)
             //reset upon establishing a connection
             dcbSerialParams.fDtrControl = DTR_CONTROL_ENABLE;
 
-            //Set the parameters and check for their proper application
+            //Set params and check
             if (!SetCommState(hSerial, &dcbSerialParams))
             {
                 printf("ALERT: Could not set Serial Port parameters");
             }
             else
             {
-                //If everything went fine we're connected
                 this->connected = true;
-                //Flush any remaining characters in the buffers
+                // Flush possible remaining characters in the buffers
                 PurgeComm(this->hSerial, PURGE_RXCLEAR | PURGE_TXCLEAR);
-                //We wait 2s as the arduino board will be reseting
+                // wait 2s as the arduino board will be reseting
                 Sleep(ARDUINO_WAIT_TIME);
             }
         }

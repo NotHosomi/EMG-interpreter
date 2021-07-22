@@ -15,6 +15,7 @@ public:
 
 	virtual VectorXd feedForward(VectorXd x_t) = 0;
 	virtual VectorXd backProp(VectorXd gradient, unsigned int t) = 0;
+	//virtual void rescaleUpdates() = 0;
 	virtual void applyUpdates() = 0;
 
 	virtual void resize(size_t new_depth) = 0;

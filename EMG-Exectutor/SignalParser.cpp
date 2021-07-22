@@ -7,55 +7,32 @@
 #include <fstream>
 
 SignalParser::SignalParser(QWidget* window, int poll_time = 100, float sample_resolution = 10) :
-	qWnd(window), POLL_TIME(poll_time), SAMPLE_TIME(1 / sample_resolution)
+	qWnd(window), POLL_TIME(poll_time), SAMPLE_TIME(1 / sample_resolution) // or use TimeConstants.h???
 {}
 
 SignalParser::~SignalParser()
 {
-	if (lstm)
-	{
-		delete lstm;
-		lstm = nullptr;
-	}
+	rnn = nullptr;
 }
 
+void SignalParser::setPort(std::string port)
+{
+	portname = port;
+}
+
+// accessors for the UI - maybe these need changing?
 std::array<int, 3> SignalParser::getInput()
 {
-	std::array<int, 3> copy;
-	inLock.lock();
-	copy = inputs;
-	inLock.unlock();
-	return copy;
+	std::lock_guard<std::mutex> lg(inLock);
+	return inputs;
 }
 
-std::array<int, 5> SignalParser::getOutput()
+void SignalParser::setModel(BakedNetwork* model)
 {
-	std::array<int, 5> copy;
-	outLock.lock();
-	copy = outputs;
-	outLock.unlock();
-	return copy;
+	rnn = model;
 }
 
-bool SignalParser::loadModel(std::string model_name)
-{
-	if (lstm)
-	{
-		delete lstm;
-		lstm = nullptr;
-	}
-
-	std::ifstream model_file(model_name + ".dat", std::ios::binary || std::ios::in);
-	if (!model_file)
-	{
-		QMessageBox::warning(qWnd, "Invalid model", ("Failed to load model \"" + model_name + "\"").c_str());
-		return false;
-	}
-	lstm = new DumbLstm(model_file);
-	return true;
-}
-
-void SignalParser::runOn(std::string portname)
+void SignalParser::runOn()
 {
 	disconnect_signal = false;
 	Serial* port = new Serial(("\\\\.\\" + portname).c_str());
@@ -66,27 +43,24 @@ void SignalParser::runOn(std::string portname)
 		return;
 	}
 
-	while (!disconnect_signal)
+	char buffer[256] = "";
+	unsigned int buffer_size = 255;
+	unsigned int length = 0;
+	Timer tmr;
+
+	tmr.mark();
+	while (port->IsConnected() && !disconnect_signal)
 	{
-		char buffer[256] = "";
-		unsigned int buffer_size = 255;
-		unsigned int length = 0;
-		Timer tmr;
+		length = port->ReadData(buffer, buffer_size);
+		buffer[length] = 0;
 
-		tmr.mark();
-		while (port->IsConnected())
+		if (tmr.peek() > SAMPLE_TIME)
 		{
-			length = port->ReadData(buffer, buffer_size);
-			buffer[length] = 0;
-
-			if (tmr.peek() > SAMPLE_TIME)
-			{
-				truncateBuffer(buffer, length);
-				buildInputs(buffer);
-				calcOutputs();
-				tmr.mark();
-			}
+			truncateBuffer(buffer, length);
+			buildInputs(buffer);
+			tmr.mark();
 		}
+		Sleep(POLL_TIME);
 	}
 	disconnect_signal = false;
 	delete port;
@@ -119,23 +93,24 @@ bool SignalParser::truncateBuffer(char* buffer, unsigned int content_length)
 	}
 	if (end_index == -1 || start_index == -1)
 	{
-		QMessageBox::warning(qWnd, "Serial", "Error: Bad buffer");
+		//QMessageBox::warning(qWnd, "Serial", "Error: Bad buffer");
 		return false;
 	}
-	int output_length = end_index - start_index;
+	int sample_length = end_index - start_index;
 	char temp[256] = "";
-	for (int i = 0; i < output_length; ++i)
+	for (int i = 0; i < sample_length; ++i)
 	{
 		temp[i] = buffer[start_index + i];
 	}
-	for (int i = 0; i < output_length; ++i)
+	for (int i = 0; i < sample_length; ++i)
 	{
 		buffer[i] = temp[i];
 	}
-	buffer[output_length] = '\0';
+	buffer[sample_length] = '\0';
 	return true;
 }
 
+// send the fresh sample to the net
 void SignalParser::buildInputs(char* buffer)
 {
 	// deconstruct the sample into values
@@ -145,27 +120,23 @@ void SignalParser::buildInputs(char* buffer)
 	for (int i = 0; i < 3; ++i)
 	{
 		getline(samplestream, value, '-');
+		if (value == "")
+		{
+			// bad sample, just use the previous values
+			sample = inputs; // don't need mutex because the only write is on the same thread
+			break;
+		}
 		sample[i] = std::stoi(value);
 	}
 	inLock.lock();
 	inputs = sample;
 	inLock.unlock();
-}
 
-void SignalParser::calcOutputs()
-{
 	Eigen::VectorXd input_vec(3);
 	for (int i = 0; i < 3; ++i)
 	{
-		input_vec[i] = inputs[i] / 1023.0;
+		input_vec[i] = sample[i] / 1023.0;
 	}
-	Eigen::VectorXd raw_out = lstm->feedForward(input_vec);
-	raw_out *= 100;
-
-	outLock.lock();
-	for (int i = 0; i < 3; ++i)
-	{
-		outputs[i] = raw_out[i];
-	}
-	outLock.unlock();
+	// TODO: fixup the following
+	rnn->addInput(input_vec);
 }

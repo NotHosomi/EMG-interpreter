@@ -17,6 +17,21 @@
     <ClCompile Include="DumbLstm.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="BakedNetwork.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BakedGenericLayer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BakedDenseLayer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BakedElmanLayer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BakedLstm.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="GUI">
@@ -55,6 +70,24 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="DumbLstm.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BakedNetwork.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BakedGenericLayer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BakedDenseLayer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BakedElmanLayer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BakedLstm.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TimeConstants.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

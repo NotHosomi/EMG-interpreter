@@ -5,32 +5,172 @@
 #include <chrono>
 #include "UnitTests.h"
 
-
+// Development & debug settings
 #define RNN 1
 #if RNN
 #include "RecurrentNetwork.h"
 #else
 #include "DeepNetwork.h"
 #endif
-#define MODEL_IO 0
-#define USE_PROCEDURAL_DATA 1
+#define MODEL_IO 1
+#define USE_PROCEDURAL_DATA 0
 #define TRAIN 1
-#define GRAD_CHECK 1
-#define DEFAULT_HYPERPARAMS 1
+#define GRAD_CHECK 0
+#define DEFAULT_TOPOLOGY 0
+#define DEFAULT_HYPERPARAMS 0
 
 // EMG constants
 #define INPUT_SIZE 3
 #define LABEL_SIZE 5
 #define EMG_MAX 1023
 
+// default hyperparams
+#define EPOCHS 50
+#define ALPHA 0.15;
+#define GAIN 2;
+
+
 int main()
 {
-    int epochs = 1;
+#if !DEFAULT_TOPOLOGY
+    std::cout << "-- TOPOLOGY --\n(Output layer must be of size 5. Enter 'done' to proceed. Enter 'pop' to remove last layer)" << std::endl;
+
+    std::vector<std::tuple<char, int>> topology_desc;
+    while(1)
+    {
+        std::cout << "Add Layer: ";
+        std::string txt;
+        std::cin >> txt;
+        txt[0] = std::toupper(txt[0]);
+        // exit check
+        if (txt == "Done")
+        {
+            if (std::get<int>(topology_desc.back()) != LABEL_SIZE)
+            {
+                std::cout << "Final layer must contain " << LABEL_SIZE << " neurons" << std::endl;
+                continue;
+                //std::cout << "Final layer must contain " << LABEL_SIZE << " neurons. Appending D" << LABEL_SIZE << std::endl;
+                //topology_desc.emplace_back('D', LABEL_SIZE);
+            }
+            else if (std::get<char>(topology_desc.back()) == 'L')
+            {
+                std::cout << "Final layer must use sigmoid activation (E, D)" << std::endl;
+                continue;
+                //std::cout << "Final layer must use sigmoid activation (E, D). Appending D" << LABEL_SIZE << std::endl;
+                //topology_desc.emplace_back('D', LABEL_SIZE);
+            }
+            break;
+        }
+        if (txt == "Pop")
+        {
+            std::cout << "Removed " << std::get<char>(topology_desc.back()) << std::get<int>(topology_desc.back()) << std::endl;
+            topology_desc.pop_back();
+            continue;
+        }
+        // contents validation
+        if (txt.size() < 2)
+        {
+            std::cout << "Invalid input - expected: (char) layer type, (int) layer size\n i.e. L16, E3, D5" << std::endl;
+            continue;
+        }
+        // layer-type validation
+        if (txt[0] != 'D' && txt[0] != 'E' && txt[0] != 'L')
+        {
+            std::cout << "Invalid layer type. Must be (L)stm, (E)lman or (D)ense" << std::endl;
+            continue;
+        }
+        // determine type
+        char type = txt[0];
+        txt.erase(txt.begin());
+        // determine size
+        if (std::find_if(txt.begin(), txt.end(), [](char c) { return !std::isdigit(c); }) != txt.end())
+        {
+            std::cout << "Invalid input - expected: (char) layer type, (int) layer size\n i.e. L16, E3, D5" << std::endl;
+            continue;
+        }
+        int size = std::stoi(txt);
+
+        topology_desc.emplace_back(type, size);
+    }
+    std::cout << "Proceeding with ";
+    for (auto L : topology_desc)
+    {
+        std::cout << std::get<char>(L) << std::get<int>(L) << " ";
+    }
+    std::cout << std::endl;
+#endif
+
+    unsigned int epochs = 1;
     double alpha = 0.15;
     double input_gain = 2;
     bool shuffle_data = true;
+    bool training_mode = true;
 #if !DEFAULT_HYPERPARAMS
-    // TODO user input
+    std::cout << "\n-- HYPERPARAMERS --\n(enter 0 to use defaults)" << std::endl;
+
+    std::string txt;
+    std::cout << "Mode (Train/Eval): ";
+    while (1)
+    {
+        std::cin >> txt;
+        txt[0] = std::tolower(txt[0]);
+        if (txt == "0" || txt == "train" || txt == "training")
+        {
+            training_mode = true;
+            break;
+        }
+        if (txt == "1" || txt == "eval" || txt == "evaluate" || txt == "evaluating")
+        {
+            training_mode = false;
+            break;
+        }
+        std::cout << "Invalid input - [Train/Eval]" << std::endl;
+    }
+
+    if (training_mode)
+    {
+        epochs = 0;
+        std::cout << "Epochs: ";
+        while (!(std::cin >> epochs))
+        {
+            std::cout << "Invalid input, please enter an interger" << std::endl;
+            std::cin.clear();
+            while (std::cin.get() != '\n'); // flush cin buffer
+        }
+        if (epochs <= 0)
+        {
+            epochs = EPOCHS;
+            std::cout << "Using default number of epochs (" << epochs << ")" << std::endl;
+        }
+
+        alpha = 0;
+        std::cout << "Alpha (Learning Rate): ";
+        while (!(std::cin >> alpha))
+        {
+            std::cout << "Invalid input, please enter an decimal" << std::endl;
+            std::cin.clear();
+            while (std::cin.get() != '\n'); // flush cin buffer
+        }
+        if (alpha <= 0)
+        {
+            alpha = ALPHA;
+            std::cout << "Using default alpha (" << std::to_string(alpha) << ")" << std::endl;
+        }
+    }
+
+    input_gain = 0;
+    std::cout << "Input gain: ";
+    while (!(std::cin >> input_gain))
+    {
+        std::cout << "Invalid input, please enter an decimal" << std::endl;
+        std::cin.clear();
+        while (std::cin.get() != '\n'); // flush cin buffer
+    }
+    if (input_gain <= 0)
+    {
+        input_gain = GAIN;
+        std::cout << "Using default input gain (" << std::to_string(input_gain) << ")" << std::endl;
+    }
 #endif
 
     // Eigen's matrix random init uses rand()
@@ -38,17 +178,17 @@ int main()
 #if RNN
     RecurrentNetwork* rnn;
 
-    std::cout << "Building model" << std::endl;
+    std::cout << "\n-- BUILD NET --" << std::endl;
 #if MODEL_IO
     std::string net_name;
     std::ifstream net_file;
     std::cout << "Net File: ";
     std::cin >> net_name;
-    if (net_name == "" || net_name == " ")
+    if (net_name == "untitled" || net_name == "new" || net_name == "New" || net_name == "0")
     {
         net_name = "Untitled";
     }
-    net_file.open("nets/" + net_name + ".dat", std::ios::binary || std::ios::in);
+    net_file.open("nets/" + net_name + ".dat", std::ios::binary | std::ios::in);
     bool new_file = false;
     if (net_file.is_open() && net_name != "Untitled")
     {
@@ -60,12 +200,20 @@ int main()
         new_file = true;
         std::cout << "Creating new network \"" << net_name << ".dat\"" << std::endl;
         rnn = new RecurrentNetwork(INPUT_SIZE, alpha, net_name);
+#if !DEFAULT_TOPOLOGY
+        for (auto L : topology_desc)
+        {
+            rnn->addLayer(std::get<char>(L), std::get<int>(L));
+        }
+#else
         rnn->addLayer('L', 16);
         rnn->addLayer('L', 16);
         rnn->addLayer('D', LABEL_SIZE);
+#endif
     }
     net_file.close();
 #else
+    std::cout << "\nBuilding model..." << std::endl;
 #if !USE_PROCEDURAL_DATA
     rnn = new RecurrentNetwork(INPUT_SIZE, alpha, "Untitled");
     rnn->addLayer('L', 16);
@@ -73,6 +221,7 @@ int main()
     rnn->addLayer('D', LABEL_SIZE);
 #else
     rnn = new RecurrentNetwork(2, alpha, "Untitled");
+    rnn->addLayer('E', 2);
     rnn->addLayer('D', 1);
 #endif
 #endif // MODEL_IO
@@ -87,7 +236,7 @@ int main()
         return 0;
     }
 
-    std::cout << "Mounting signal data..." << std::endl;
+    std::cout << "\nMounting signal data..." << std::endl;
 
     // 8 = input
     std::vector<int> values;
@@ -171,8 +320,8 @@ int main()
     //Dataset<std::vector<VectorXd>> train_set = UnitTests::SeqSingle(800, UnitTests::GateType::AND);
     //Dataset<std::vector<VectorXd>> test_set = UnitTests::SeqSingle(200, UnitTests::GateType::AND);
 
-    Dataset<std::vector<VectorXd>> train_set = UnitTests::SeqGatesIsolated(1, 1, UnitTests::GateType::AND);
-    Dataset<std::vector<VectorXd>> test_set = UnitTests::SeqGatesIsolated(1, 1, UnitTests::GateType::AND);
+    Dataset<std::vector<VectorXd>> train_set = UnitTests::SeqGatesIsolated(1, 3, UnitTests::GateType::AND);
+    Dataset<std::vector<VectorXd>> test_set = UnitTests::SeqGatesIsolated(1, 3, UnitTests::GateType::AND);
 
     //Dataset<std::vector<VectorXd>> train_set = UnitTests::Toggle(120, 10);
     //Dataset<std::vector<VectorXd>> test_set = UnitTests::Toggle(20, 10);
@@ -187,6 +336,17 @@ int main()
     //Dataset<std::vector<VectorXd>> test_set = UnitTests::Noise(20, 10, 4, 1);
 #endif // USE_PROCEDURAL_DATA
 
+    // eval only mode
+    if (!training_mode)
+    {
+        rnn->useCheckpoints(false);
+        double test_err = rnn->evalSet(test_set);
+        std::cout << "\nLoss: " << std::to_string(test_err) << std::endl;
+        delete rnn;
+        return 0;
+    }
+
+#if TRAIN
     std::ofstream log("logs/loss.txt", std::ios::trunc);
     if (!log)
     {
@@ -194,7 +354,7 @@ int main()
         return 3;
     }
 
-#if TRAIN
+    std::cout << "\n-- TRAIN NET --" << std::endl;
 #pragma region TRAIN_NET
     int stable_stop_counter = 0;
     int stable_stop_threshold = 10;
@@ -250,31 +410,34 @@ int main()
 #endif // TRAIN
 
 #if GRAD_CHECK
+    std::cout << "Running grad checks" << std::endl;
     //for (int seq = 0; seq < train_set.inputs.size(); ++seq)
     //{
     //    std::cout << "\nGrad check for seq " << seq << std::endl;
     //    rnn->gradCheck(train_set.inputs[seq], train_set.labels[seq]);
     //}
     rnn->gradCheck(train_set.inputs[0], train_set.labels[0]);
+    rnn->gradCheckAtT(train_set.inputs[0], train_set.labels[0], 0);
+    rnn->gradCheckAtT(train_set.inputs[0], train_set.labels[0], 1);
+    rnn->gradCheckAtT(train_set.inputs[0], train_set.labels[0], 2);
+    std::cout << "Finished grad checks" << std::endl;
 #endif // GRAD_CHECK
-
 
     log.close();
     delete rnn;
 
 #if  MODEL_IO
-    //std::string net_name = "Untitled";
-    //std::ifstream net_file;
+    std::cout << "\n-- BEST ITERATION --" << std::endl;
     net_name += "_CKP";
     net_file.open("nets/" + net_name + ".dat", std::ios::binary | std::ios::in);
     if (net_file)
     {
         std::cout << "Loading 'nets/" << net_name << ".dat'" << std::endl;
         rnn = new RecurrentNetwork(net_file, net_name);
-        rnn->print();
+        rnn->useCheckpoints(false);
 
         double test_err = rnn->evalSet(test_set);
-        std::cout << "\nBest: " << std::to_string(test_err) << std::endl;
+        std::cout << "\nLoss: " << std::to_string(test_err) << std::endl;
         delete rnn;
     }
 #endif //  MODEL_IO

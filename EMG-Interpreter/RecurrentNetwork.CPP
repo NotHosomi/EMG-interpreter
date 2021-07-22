@@ -38,12 +38,9 @@ RecurrentNetwork::RecurrentNetwork(std::ifstream& file, std::string _name, doubl
         int layer_size = 0;
         file.read(reinterpret_cast<char*>(&layer_type), sizeof(char));
         file.read(reinterpret_cast<char*>(&layer_size), sizeof(int));
-        std::cout << layer_type << "\n" << layer_size << std::endl;
 
         addLayer(layer_type, layer_size);
-        std::cout << "Layer start pos: " << file.tellg() << std::endl;
         layers.back()->loadWeights(file);
-        std::cout << "\nLayer end pos: " << file.tellg() << std::endl;
     }
     file.close();
 }
@@ -88,15 +85,12 @@ void RecurrentNetwork::save(bool checkpoint)
     }
 
     int n = layers.size();
-    //std::cout << n << "\n" << INPUT_SIZE << "\n" << alpha << std::endl;
     file.write(reinterpret_cast<char*>(&n), sizeof(int));
     file.write(reinterpret_cast<char*>(&INPUT_SIZE), sizeof(int));
     file.write(reinterpret_cast<char*>(&alpha), sizeof(double));
     for (auto L : layers)
     {
-        //std::cout << "Layer start pos: " << file.tellp() << std::endl;
         L->save(file);
-        //std::cout << "Layer end pos: " << file.tellp() << std::endl;
     }
     std::cout << "Saved to \"nets/" + filename + ".dat\"" << std::endl;
     file.close();
@@ -250,7 +244,7 @@ double RecurrentNetwork::evalSet(Dataset<std::vector<VectorXd>> data)
         L->clearCaches();
     }
     net_loss /= data.inputs.size();
-    if (net_loss < best_loss)
+    if (net_loss < best_loss && checkpoints_enabled)
     {
         best_loss = net_loss;
         save(true);
@@ -299,6 +293,9 @@ void RecurrentNetwork::gradCheck(std::vector<VectorXd> inputs, std::vector<Vecto
         // unwrap the weights
         L->writeWeightBuffer(theta, pos);
     }
+
+#pragma region Approx Weight Grads
+
     std::vector<double> thetaPlus;
     std::vector<double> thetaMinus;
     VectorXd gradApprox(theta.size());
@@ -328,6 +325,8 @@ void RecurrentNetwork::gradCheck(std::vector<VectorXd> inputs, std::vector<Vecto
         theta_minus_loss = evalSeq(inputs, labels);
         gradApprox[i] = (theta_plus_loss - theta_minus_loss) / (2 * EPSILON);
     }
+    gradApprox *= inputs.size(); // inverse of the actual grads being divided by 
+#pragma endregion
 
     // compute Backprop's gradients
     pos = 0;
@@ -345,32 +344,33 @@ void RecurrentNetwork::gradCheck(std::vector<VectorXd> inputs, std::vector<Vecto
     }
 
 #pragma region toplevel loss comparison
-
-    for (int t = 0; t < inputs.size(); ++t)
-    {
-        std::cout << "\nRNN Yt:\n" << y_history[0];
-        std::cout << "\nRNN Label:\n" << labels[0];
-        VectorXd grad_dloss = Common::dloss(y_history[0], labels[0]);
-        std::cout << "\ndY:\n" << grad_dloss << std::endl;
-    }
-    VectorXd y_gradApprox(y_history[0].size());
-    VectorXd y_plus;
-    VectorXd y_minus;
-    double y_plus_loss = 0;
-    double y_minus_loss = 0;
-    for (int i = 0; i < y_history[0].size(); ++i)
-    {
-        // calculate thetaPlus loss
-        y_plus = y_history[0];
-        y_plus[i] += EPSILON;
-        y_plus_loss = Common::loss(y_plus, labels[0]).sum();
-        // calculate thetaMinus loss
-        y_minus = y_history[0];
-        y_minus[i] -= EPSILON;
-        y_minus_loss = Common::loss(y_minus, labels[0]).sum();
-        y_gradApprox[i] = (y_plus_loss - y_minus_loss) / (2 * EPSILON);
-    }
-    std::cout << "\ndY approx:\n" << y_gradApprox << std::endl;
+    // Top level loss confirmed accurate
+    //for (int t = 0; t < inputs.size(); ++t)
+    //{
+    //    std::cout << "\n TIMESTEP: " << t << std::endl;
+    //    std::cout << "\nRNN Yt:\n" << y_history[t];
+    //    std::cout << "\nRNN Label:\n" << labels[t];
+    //    VectorXd grad_dloss = Common::dloss(y_history[t], labels[t]);
+    //    std::cout << "\ndY:\n" << grad_dloss << std::endl;
+    //    VectorXd y_gradApprox(y_history[t].size());
+    //    VectorXd y_plus;
+    //    VectorXd y_minus;
+    //    double y_plus_loss = 0;
+    //    double y_minus_loss = 0;
+    //    for (int i = 0; i < y_history[t].size(); ++i)
+    //    {
+    //        // calculate thetaPlus loss
+    //        y_plus = y_history[t];
+    //        y_plus[i] += EPSILON;
+    //        y_plus_loss = Common::loss(y_plus, labels[t]).sum();
+    //        // calculate thetaMinus loss
+    //        y_minus = y_history[t];
+    //        y_minus[i] -= EPSILON;
+    //        y_minus_loss = Common::loss(y_minus, labels[t]).sum();
+    //        y_gradApprox[i] = (y_plus_loss - y_minus_loss) / (2 * EPSILON);
+    //    }
+    //    std::cout << "\ndY approx:\n" << y_gradApprox << std::endl;
+    //}
 #pragma endregion
     backProp(labels);
     // Pull functional gradient vector from the network
@@ -383,8 +383,8 @@ void RecurrentNetwork::gradCheck(std::vector<VectorXd> inputs, std::vector<Vecto
     clearCaches();
 
     // compare grad approx to the updates
-    double diff = (gradApprox - dVec).norm() / (gradApprox.norm() - dVec.norm());
-    std::cout << "gradApprox difference: " << diff << std::endl;
+    double ratio = (gradApprox - dVec).norm() / (gradApprox.norm() - dVec.norm());
+    std::cout << "gradApprox difference: " << ratio << std::endl;
 
 #pragma region OUTPUTTING
 
@@ -434,7 +434,6 @@ void RecurrentNetwork::gradCheck(std::vector<VectorXd> inputs, std::vector<Vecto
     }
 
 #pragma endregion
-
     // return the weights to their original values
     pos = 0;
     for (auto L : layers)
@@ -442,6 +441,165 @@ void RecurrentNetwork::gradCheck(std::vector<VectorXd> inputs, std::vector<Vecto
         L->readWeightBuffer(theta, pos);
     }
 }
+
+// TODO: Investigate why the corruption only occurs with multiple timesteps
+void RecurrentNetwork::gradCheckAtT(std::vector<VectorXd> inputs, std::vector<VectorXd> labels, int timestep)
+{
+    const double EPSILON = 10e-7;
+    std::vector<double> theta;
+    int pos = 0;
+    for (auto L : layers)
+    {
+        // unwrap the weights
+        L->writeWeightBuffer(theta, pos);
+    }
+
+#pragma region Approx Weight Grads
+
+    std::vector<double> thetaPlus;
+    std::vector<double> thetaMinus;
+    VectorXd gradApprox(theta.size());
+    double theta_plus_loss = 0;
+    double theta_minus_loss = 0;
+
+    // numerically approximate the gradient with respect to each weight
+    for (int i = 0; i < theta.size(); ++i)
+    {
+        // calculate thetaPlus loss
+        thetaPlus = theta;
+        thetaPlus[i] += EPSILON;
+        pos = 0;
+        for (auto L : layers)
+        {
+            L->readWeightBuffer(thetaPlus, pos);
+        }
+        theta_plus_loss = Common::loss(feedForward(inputs[timestep]), labels[timestep]).sum() / OUTPUT_SIZE;
+        // calculate thetaMinus loss
+        thetaMinus = theta;
+        thetaMinus[i] -= EPSILON;
+        pos = 0;
+        for (auto L : layers)
+        {
+            L->readWeightBuffer(thetaMinus, pos);
+        }
+        theta_minus_loss = Common::loss(feedForward(inputs[timestep]), labels[timestep]).sum() / OUTPUT_SIZE;
+        gradApprox[i] = (theta_plus_loss - theta_minus_loss) / (2 * EPSILON);
+    }
+#pragma endregion
+
+#pragma region Calc Actual Grads
+
+    // compute Backprop's gradients
+    pos = 0;
+    for (auto L : layers)
+    {
+        // put the original weights back into the network
+        L->readWeightBuffer(theta, pos);
+    }
+    // FEEDFORWARD
+    resize(inputs.size());
+    for (int i = 0; i < inputs.size(); ++i)
+    {
+        VectorXd outputs = feedForward(inputs[i]);
+        y_history.push_back(outputs);
+    }
+    // BACKPROP
+    VectorXd grad = Common::dloss(y_history[timestep], labels[timestep]);
+    for (auto L = layers.rbegin(); L != layers.rend(); ++L)
+    {
+        grad = (*L)->backProp(grad, timestep+1);
+    }
+    // pull gradients from net
+    VectorXd dVec(theta.size());
+    pos = 0;
+    for (auto L : layers)
+    {
+        L->writeUpdateBuffer(dVec, pos);
+    }
+#pragma endregion
+
+
+#pragma region OUTPUTTING
+    std::cout << "\nTIMESTEP: " << timestep << std::endl;
+    // compare grad approx to the updates
+    double diff = (gradApprox - dVec).norm() / (gradApprox.norm() - dVec.norm());
+    std::cout << "gradApprox difference: " << diff << std::endl;
+
+    // difference per parameter
+    std::cout << "check differences grads" << std::endl;
+    VectorXd vDiff = (gradApprox - dVec).cwiseAbs();
+    std::vector<double> diff_list;
+    for (int i = 0; i < theta.size(); ++i)
+    {
+        diff_list.push_back(vDiff[i]);
+    }
+    pos = 0;
+    for (auto L : layers)
+    {
+        // print out the gradient inaccuracies in respective matrices.
+        L->readWeightBuffer(diff_list, pos);
+        L->print();
+    }
+
+
+    std::cout << "backprop grads" << std::endl;
+    std::vector<double> grad_list;
+    for (int i = 0; i < theta.size(); ++i)
+    {
+        grad_list.push_back(dVec[i]);
+    }
+    pos = 0;
+    for (auto L : layers)
+    {
+        // print out the gradient inaccuracies in respective matrices.
+        L->readWeightBuffer(grad_list, pos);
+        L->print();
+    }
+
+
+    std::cout << "approx grads" << std::endl;
+    std::vector<double> approx_list;
+    for (int i = 0; i < theta.size(); ++i)
+    {
+        approx_list.push_back(gradApprox[i]);
+    }
+    pos = 0;
+    for (auto L : layers)
+    {
+        // print out the gradient inaccuracies in respective matrices.
+        L->readWeightBuffer(approx_list, pos);
+        L->print();
+    }
+
+
+    // return the weights to their original values
+    std::cout << "Actual weights:" << std::endl;
+    pos = 0;
+    for (auto L : layers)
+    {
+        L->readWeightBuffer(theta, pos);
+        L->print();
+    }
+
+    std::cout << "In:\n" << inputs[timestep].transpose() << std::endl;
+    std::cout << "Y:\n" << y_history[timestep].transpose() << std::endl;
+
+    clearCaches();
+#pragma endregion
+}
+/*
+    Gradient checking todo:
+    check the grads of each timestep, find out WHICH timestep causes it
+    maybe only happens if full Feedforward rather than single timestep, for example
+    what are the possible sources of the issue
+    write out what is different between single and multiple sample sequence
+*/
+
+void RecurrentNetwork::useCheckpoints(bool useCkp)
+{
+    checkpoints_enabled = useCkp;
+}
+
 
 // Internals
 VectorXd RecurrentNetwork::feedForward(VectorXd input)
@@ -480,6 +638,8 @@ double RecurrentNetwork::backProp(std::vector<VectorXd> labels)
         }
     }
 
+    // Div each layer's updates by their cache size - 1
+
     y_history.clear();
     return std::abs(net_cost) / (labels.size());// -r_limit);
 }
@@ -507,7 +667,4 @@ void RecurrentNetwork::resize(size_t new_depth)
     {
         L->resize(new_depth);
     }
-    //L1.resize(new_depth);
-    //L2.resize(new_depth);
-    //L3.resize(new_depth);
 }

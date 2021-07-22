@@ -19,22 +19,40 @@ EMGExectutor::EMGExectutor(QWidget* parent)
 
 EMGExectutor::~EMGExectutor()
 {
+    parser->disconnect();
+    rnn->stop();
+
+    parse_thread.join();
     if (parser != nullptr)
     {
         delete parser;
         parser = nullptr;
     }
+    net_thread.join();
+    if (rnn != nullptr)
+    {
+        delete rnn;
+        rnn = nullptr;
+    }
 }
 
 void EMGExectutor::connectPressed()
 {
+    // Open network and serial threads
+    // network
     if (!hasModel)
     {
-        QMessageBox::warning(this, "Invalid model", "No model has been loaded");
+        QMessageBox::warning(this, "Connection Failed", "No model has been mounted");
         return;
     }
-    std::string portname = ui.textEdit_COMport->text().toStdString();
-    std::thread parse_thread([this, portname] { this->parser->runOn(portname); });
+    net_thread = std::thread(&BakedNetwork::run, rnn);
+
+    // serial
+    //std::string portname = ui.textEdit_COMport->text().toStdString();
+    //std::thread parse_thread([this, portname] { this->parser->runOn(portname); });
+    parser->setPort(ui.textEdit_COMport->text().toStdString());
+    parse_thread = std::thread(&SignalParser::runOn, parser);
+
     refresh->start(100);
 }
 
@@ -42,14 +60,22 @@ void EMGExectutor::disconnectPressed()
 {
     refresh->stop();
     parser->disconnect();
+    rnn->stop();
+
+    parse_thread.join();
+    net_thread.join();
+    hasModel = false;
 }
 
 void EMGExectutor::updateBars()
 {
+    if (parser == nullptr || rnn == nullptr)
+        return;
     std::array<int, 3> inputs;
     inputs = parser->getInput();
-    std::array<int, 5> outputs;
-    outputs = parser->getOutput();
+    VectorXd outputs = rnn->getOutput();
+    outputs *= 100;
+
     ui.Bar_Input0->setValue(inputs[0]);
     ui.Bar_Input1->setValue(inputs[1]);
     ui.Bar_Input2->setValue(inputs[2]);
@@ -62,9 +88,27 @@ void EMGExectutor::updateBars()
 
 void EMGExectutor::loadModel()
 {
-    if (parser->loadModel(ui.textEdit_TempLoad->text().toStdString()))
+    hasModel = false;
+    if (rnn)
     {
-        hasModel = true;
+        delete rnn;
+        rnn = nullptr;
+        parser->setModel(nullptr);
     }
+    std::string model_name = ui.textEdit_TempLoad->text().toStdString();
+    if (model_name == "")
+    {
+        QMessageBox::warning(this, "Invalid model", "No model has been specified");
+        return;
+    }
+    std::ifstream model_file("nets/" + model_name + ".dat", std::ios::binary | std::ios::in);
+    if (!model_file)
+    {
+        QMessageBox::warning(this, "Invalid model", ("Failed to load model \"nets/" + model_name + "\"").c_str());
+        return;
+    }
+    rnn = new BakedNetwork(model_file);
+    parser->setModel(rnn);
+    hasModel = true;
 }
 
