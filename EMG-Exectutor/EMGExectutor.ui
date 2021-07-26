@@ -196,7 +196,7 @@
       <item row="2" column="0">
        <widget class="QLabel" name="label_9">
         <property name="text">
-         <string>Index</string>
+         <string>Sensor2 (FDS)</string>
         </property>
        </widget>
       </item>
@@ -228,7 +228,7 @@
       <item row="0" column="0">
        <widget class="QLabel" name="label_6">
         <property name="text">
-         <string>Thumb</string>
+         <string>Sensor1 (FDP)</string>
         </property>
        </widget>
       </item>
@@ -249,7 +249,7 @@
       <item row="4" column="0">
        <widget class="QLabel" name="label_10">
         <property name="text">
-         <string>Middle</string>
+         <string>Sensor3 (ED)</string>
         </property>
        </widget>
       </item>
