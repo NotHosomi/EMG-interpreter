@@ -42,6 +42,9 @@ public:
 	void gradCheckAtT(std::vector<VectorXd> inputs, std::vector<VectorXd> labels, int timestep);
 
 	void useCheckpoints(bool useCkp);
+
+	int getInputSize() { return INPUT_SIZE; };
+	int getOutputSize() { return OUTPUT_SIZE; };
 private:
 	VectorXd feedForward(VectorXd input);
 	double backProp(std::vector<VectorXd> labels);
