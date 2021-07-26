@@ -31,82 +31,17 @@
 #define GAIN 2;
 
 
+std::vector<std::tuple<char, int>> buildTopology();
+
 int main()
 {
-#if !DEFAULT_TOPOLOGY
-    std::cout << "-- TOPOLOGY --\n(Output layer must be of size 5. Enter 'done' to proceed. Enter 'pop' to remove last layer)" << std::endl;
-
-    std::vector<std::tuple<char, int>> topology_desc;
-    while(1)
-    {
-        std::cout << "Add Layer: ";
-        std::string txt;
-        std::cin >> txt;
-        txt[0] = std::toupper(txt[0]);
-        // exit check
-        if (txt == "Done")
-        {
-            if (std::get<int>(topology_desc.back()) != LABEL_SIZE)
-            {
-                std::cout << "Final layer must contain " << LABEL_SIZE << " neurons" << std::endl;
-                continue;
-                //std::cout << "Final layer must contain " << LABEL_SIZE << " neurons. Appending D" << LABEL_SIZE << std::endl;
-                //topology_desc.emplace_back('D', LABEL_SIZE);
-            }
-            else if (std::get<char>(topology_desc.back()) == 'L')
-            {
-                std::cout << "Final layer must use sigmoid activation (E, D)" << std::endl;
-                continue;
-                //std::cout << "Final layer must use sigmoid activation (E, D). Appending D" << LABEL_SIZE << std::endl;
-                //topology_desc.emplace_back('D', LABEL_SIZE);
-            }
-            break;
-        }
-        if (txt == "Pop")
-        {
-            std::cout << "Removed " << std::get<char>(topology_desc.back()) << std::get<int>(topology_desc.back()) << std::endl;
-            topology_desc.pop_back();
-            continue;
-        }
-        // contents validation
-        if (txt.size() < 2)
-        {
-            std::cout << "Invalid input - expected: (char) layer type, (int) layer size\n i.e. L16, E3, D5" << std::endl;
-            continue;
-        }
-        // layer-type validation
-        if (txt[0] != 'D' && txt[0] != 'E' && txt[0] != 'L')
-        {
-            std::cout << "Invalid layer type. Must be (L)stm, (E)lman or (D)ense" << std::endl;
-            continue;
-        }
-        // determine type
-        char type = txt[0];
-        txt.erase(txt.begin());
-        // determine size
-        if (std::find_if(txt.begin(), txt.end(), [](char c) { return !std::isdigit(c); }) != txt.end())
-        {
-            std::cout << "Invalid input - expected: (char) layer type, (int) layer size\n i.e. L16, E3, D5" << std::endl;
-            continue;
-        }
-        int size = std::stoi(txt);
-
-        topology_desc.emplace_back(type, size);
-    }
-    std::cout << "Proceeding with ";
-    for (auto L : topology_desc)
-    {
-        std::cout << std::get<char>(L) << std::get<int>(L) << " ";
-    }
-    std::cout << std::endl;
-#endif
-
     // Init hyperparameters
     unsigned int epochs = EPOCHS;
     double alpha = ALPHA;
     double input_gain = GAIN;
     bool shuffle_data = true;
     bool training_mode = true;
+    int window_size = 1;
 #if !DEFAULT_HYPERPARAMS
     std::cout << "\n-- HYPERPARAMERS --\n(enter 0 to use defaults)" << std::endl;
 
@@ -204,16 +139,10 @@ int main()
         new_file = true;
         std::cout << "Creating new network \"" << net_name << ".dat\"" << std::endl;
         rnn = new RecurrentNetwork(INPUT_SIZE, alpha, net_name);
-#if !DEFAULT_TOPOLOGY
-        for (auto L : topology_desc)
+        for (auto L : buildTopology())
         {
             rnn->addLayer(std::get<char>(L), std::get<int>(L));
         }
-#else
-        rnn->addLayer('L', 16);
-        rnn->addLayer('L', 16);
-        rnn->addLayer('D', LABEL_SIZE);
-#endif
     }
     net_file.close();
 #else
@@ -482,6 +411,78 @@ int main()
     return 0;
 }
 
+std::vector<std::tuple<char, int>> buildTopology()
+{
+    std::vector<std::tuple<char, int>> topology_desc;
+#if DEFAULT_TOPOLOGY
+    topology_desc.emplace_back('L', 16);
+    topology_desc.emplace_back('L', 16);
+    topology_desc.emplace_back('D', 5);
+    return topology_desc;
+#endif
+    std::cout << "-- TOPOLOGY --\n(Output layer must be of size 5. Enter 'done' to proceed. Enter 'pop' to remove last layer)" << std::endl;
 
+    while (1)
+    {
+        std::cout << "Add Layer: ";
+        std::string txt;
+        std::cin >> txt;
+        txt[0] = std::toupper(txt[0]);
+        // exit check
+        if (txt == "Done")
+        {
+            if (std::get<int>(topology_desc.back()) != LABEL_SIZE)
+            {
+                std::cout << "Final layer must contain " << LABEL_SIZE << " neurons" << std::endl;
+                continue;
+                //std::cout << "Final layer must contain " << LABEL_SIZE << " neurons. Appending D" << LABEL_SIZE << std::endl;
+                //topology_desc.emplace_back('D', LABEL_SIZE);
+                }
+            else if (std::get<char>(topology_desc.back()) == 'L')
+            {
+                std::cout << "Final layer must use sigmoid activation (E, D)" << std::endl;
+                continue;
+                //std::cout << "Final layer must use sigmoid activation (E, D). Appending D" << LABEL_SIZE << std::endl;
+                //topology_desc.emplace_back('D', LABEL_SIZE);
+            }
+            break;
+            }
+        if (txt == "Pop")
+        {
+            std::cout << "Removed " << std::get<char>(topology_desc.back()) << std::get<int>(topology_desc.back()) << std::endl;
+            topology_desc.pop_back();
+            continue;
+        }
+        // contents validation
+        if (txt.size() < 2)
+        {
+            std::cout << "Invalid input - expected: (char) layer type, (int) layer size\n i.e. L16, E3, D5" << std::endl;
+            continue;
+        }
+        // layer-type validation
+        if (txt[0] != 'D' && txt[0] != 'E' && txt[0] != 'L')
+        {
+            std::cout << "Invalid layer type. Must be (L)stm, (E)lman or (D)ense" << std::endl;
+            continue;
+        }
+        // determine type
+        char type = txt[0];
+        txt.erase(txt.begin());
+        // determine size
+        if (std::find_if(txt.begin(), txt.end(), [](char c) { return !std::isdigit(c); }) != txt.end())
+        {
+            std::cout << "Invalid input - expected: (char) layer type, (int) layer size\n i.e. L16, E3, D5" << std::endl;
+            continue;
+        }
+        int size = std::stoi(txt);
 
+        topology_desc.emplace_back(type, size);
+    }
+    std::cout << "Proceeding with ";
+    for (auto L : topology_desc)
+    {
+        std::cout << std::get<char>(L) << std::get<int>(L) << " ";
+    }
+    std::cout << std::endl;
 
+}
