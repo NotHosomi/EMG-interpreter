@@ -15,6 +15,7 @@
 #define MODEL_IO 1
 #define USE_PROCEDURAL_DATA 0
 #define TRAIN 1
+#define INTRAEPOCH_LOGGING 0
 #define GRAD_CHECK 0
 #define DEFAULT_TOPOLOGY 0
 #define DEFAULT_HYPERPARAMS 0
@@ -100,9 +101,10 @@ int main()
     std::cout << std::endl;
 #endif
 
-    unsigned int epochs = 1;
-    double alpha = 0.15;
-    double input_gain = 2;
+    // Init hyperparameters
+    unsigned int epochs = EPOCHS;
+    double alpha = ALPHA;
+    double input_gain = GAIN;
     bool shuffle_data = true;
     bool training_mode = true;
 #if !DEFAULT_HYPERPARAMS
@@ -192,11 +194,13 @@ int main()
     bool new_file = false;
     if (net_file.is_open() && net_name != "Untitled")
     {
+        // Load an existing model from file
         std::cout << "Loading 'nets/" << net_name << ".dat'" << std::endl;
         rnn = new RecurrentNetwork(net_file, net_name);
     }
     else
     {
+        // Create a new model
         new_file = true;
         std::cout << "Creating new network \"" << net_name << ".dat\"" << std::endl;
         rnn = new RecurrentNetwork(INPUT_SIZE, alpha, net_name);
@@ -305,6 +309,8 @@ int main()
     std::cout << "Train split:\t" << train_set.inputs.size()
         << "\tTest split:\t" << test_set.inputs.size() << std::endl;
 #else // Procedural data gen
+    // A whole lot of generated datasets (See UnitTests.h)
+
     //std::vector<Dataset<std::vector<VectorXd>>> batches;
     //for (int i = 0; i < 10; ++i)
     //    batches.push_back(UnitTests::MealSequence(30, 30));
@@ -346,22 +352,22 @@ int main()
         return 0;
     }
 
-#if TRAIN
+    // open the log file to record the training curve
     std::ofstream log("logs/loss.txt", std::ios::trunc);
     if (!log)
     {
-        std::cout << "Failed to open file 'logs/loss.txt'" << std::endl;
+        std::cout << "Failed to open file 'logs/loss.txt'\nDoes the directory exist?" << std::endl;
         return 3;
     }
 
+#if TRAIN
     std::cout << "\n-- TRAIN NET --" << std::endl;
 #pragma region TRAIN_NET
+    // prep early-exit vars
     int stable_stop_counter = 0;
     int stable_stop_threshold = 10;
     float avrg = 0;
-    float devi;
-    int devi_stop_counter = 0;
-    int devi_stop_threshold = 50;
+    // The training loop
     for (int epoch = 0; epoch < epochs; ++epoch)
     {
         std::cout << "Epoch:\t" << epoch << std::endl;
@@ -373,8 +379,11 @@ int main()
         // Test
         test_err = rnn->evalSet(test_set);
         std::cout << std::to_string(test_err) << std::endl;
+        // log
         log << std::to_string(train_err) << " ";
         log << std::to_string(test_err) << " ";
+
+        // early exit check
         if (test_err < 0.0002)
         {
             if (stable_stop_counter++ > stable_stop_threshold)
@@ -387,28 +396,31 @@ int main()
         {
             stable_stop_counter = 0;
         }
-        avrg = ((float)test_err + avrg * epoch) / (epoch + 1);
-        devi = abs((float)test_err - avrg);
-        if (devi < 0.1)
-        {
-            if (devi_stop_counter++ > devi_stop_threshold)
-            {
-                std::cout << "No deviation in 50 epochs. Stopping." << std::endl;
-                break;
-            }
-            else
-            {
-                devi_stop_counter = 0;
-            }
-        }
 #if SHUFFLE_DATA
         train_set.shuffle();
 #endif
     }
     rnn->save();
 #pragma endregion
+#elif INTRAEPOCH_LOGGING
+    std::cout << "\n-- TRAIN NET --" << std::endl;
+    // The training loop
+    for (int epoch = 0; epoch < epochs; ++epoch)
+    {
+        for (int seq = 0; seq < train_set.inputs.size(); ++seq)
+        {
+            double train_err = 0;
+            double test_err = 0;
+            // Train
+            train_err = rnn->trainSeq(train_set.inputs[seq], train_set.labels[seq]);
+            std::cout << std::to_string(train_err) << std::endl;
+            // log
+            log << std::to_string(train_err) << " 0 ";
+        }
+    }
 #endif // TRAIN
 
+    // For debugging
 #if GRAD_CHECK
     std::cout << "Running grad checks" << std::endl;
     //for (int seq = 0; seq < train_set.inputs.size(); ++seq)
@@ -426,6 +438,7 @@ int main()
     log.close();
     delete rnn;
 
+    // load the checkpoint to create output data of the best model
 #if  MODEL_IO
     std::cout << "\n-- BEST ITERATION --" << std::endl;
     net_name += "_CKP";
@@ -442,6 +455,8 @@ int main()
     }
 #endif //  MODEL_IO
 
+    // an implementation of a regular DNN
+    // The RNN class is basically just a batch DNN anyway tho
 #elif // DNN
     DeepNetwork dnn;
     Dataset<VectorXd> train = UnitTests::gate(30, UnitTests::AND);

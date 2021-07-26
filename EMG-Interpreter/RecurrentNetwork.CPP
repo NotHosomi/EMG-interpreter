@@ -102,10 +102,10 @@ double RecurrentNetwork::trainSeq(std::vector<VectorXd> inputs, std::vector<Vect
 {
     resize(inputs.size());
     double net_loss = 0;
-    for (int i = 0; i < inputs.size(); ++i)
+    for (int t = 0; t < inputs.size(); ++t)
     {
-        VectorXd outputs = feedForward(inputs[i]);
-        net_loss += Common::loss(outputs, labels[i]).sum() / OUTPUT_SIZE;
+        VectorXd outputs = feedForward(inputs[t]);
+        net_loss += Common::loss(outputs, labels[t]).sum() / OUTPUT_SIZE;
     }
     backProp(labels);
     applyUpdates();
@@ -135,16 +135,16 @@ double RecurrentNetwork::trainSet(Dataset<std::vector<VectorXd>> data)
 #endif
         double local_loss = 0;
         resize(data.inputs[seq].size());
-        for (int i = 0; i < data.inputs[seq].size(); ++i)
+        for (int t = 0; t < data.inputs[seq].size(); ++t)
         {
-            VectorXd outputs = feedForward(data.inputs[seq][i]);
-            local_loss += Common::loss(outputs, data.labels[seq][i]).sum() / OUTPUT_SIZE;
+            VectorXd outputs = feedForward(data.inputs[seq][t]);
+            local_loss += Common::loss(outputs, data.labels[seq][t]).sum() / OUTPUT_SIZE;
 
 #if LOG_SEQ_TRAIN
-            for (int j = 0; j < OUTPUT_SIZE; ++j)
+            for (int i = 0; i < OUTPUT_SIZE; ++i)
             {
-                log_seq << outputs[j] << " "
-                    << data.labels[seq][i][j] << " ";
+                log_seq << outputs[i] << " "
+                    << data.labels[seq][t][i] << " ";
             }
 #endif
 #if LOG_ACC
