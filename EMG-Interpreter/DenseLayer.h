@@ -11,7 +11,7 @@ using namespace Common;
 class DenseLayer : public GenericLayer
 {
 public:
-	DenseLayer(int input_size, int output_size, double alpha);
+	DenseLayer(int input_size, int output_size, double alpha, double beta1);
 
 	VectorXd feedForward(VectorXd x_t) override;
 	VectorXd backProp(VectorXd gradient, unsigned int t) override;

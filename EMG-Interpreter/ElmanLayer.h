@@ -10,7 +10,7 @@ class ElmanLayer :
     public GenericLayer
 {
 public:
-	ElmanLayer(int input_size, int output_size, double alpha);
+	ElmanLayer(int input_size, int output_size, double alpha, double beta1);
 
 	VectorXd feedForward(VectorXd x_t) override;
 	VectorXd backProp(VectorXd gradient, unsigned int t) override;

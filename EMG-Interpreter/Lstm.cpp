@@ -5,8 +5,8 @@
 #include "Common.h"
 using namespace Common;
 
-Lstm::Lstm(int input_size, int output_size, double alpha) :
-	GenericLayer(input_size, output_size, alpha)
+Lstm::Lstm(int input_size, int output_size, double alpha, double beta1) :
+	GenericLayer(input_size, output_size, alpha, beta1)
 {
 	// init W matrices for gates
 	f = MatrixXd::Random(OUTPUT_SIZE, INPUT_SIZE + OUTPUT_SIZE + 1); // + 1 (bias)
@@ -183,10 +183,10 @@ void Lstm::applyUpdates()
 	++adam_t;
 	// Momentum (V)
 	// Vdw = Beta1 * Vdw + (1 - Beta1) * dw
-	momentum_f = 0.9 * momentum_f + 0.01 * tfu;
-	momentum_i = 0.9 * momentum_i + 0.01 * tfu;
-	momentum_c = 0.9 * momentum_c + 0.01 * tfu;
-	momentum_o = 0.9 * momentum_o + 0.01 * tfu;
+	momentum_f = beta1 * momentum_f + (1-beta1) * tfu;
+	momentum_i = beta1 * momentum_i + (1-beta1) * tfu;
+	momentum_c = beta1 * momentum_c + (1-beta1) * tfu;
+	momentum_o = beta1 * momentum_o + (1-beta1) * tfu;
 	// RMS Prop (S)
 	// Sdw = Beta2 * Sdw + (1-Beta2) * dw^2
 	rms_prop_f = 0.999 * rms_prop_f + 0.001 * tfu.cwiseProduct(tfu);
@@ -195,7 +195,7 @@ void Lstm::applyUpdates()
 	rms_prop_o = 0.999 * rms_prop_o + 0.001 * tou.cwiseProduct(tou);
 
 	// Bias correction
-	double beta1_denom = (1 - pow(0.9, adam_t));
+	double beta1_denom = (1 - pow(beta1, adam_t));
 	double beta2_denom = (1 - pow(0.999, adam_t));
 	MatrixXd Vfc = momentum_f / beta1_denom;
 	MatrixXd Vic = momentum_i / beta1_denom;

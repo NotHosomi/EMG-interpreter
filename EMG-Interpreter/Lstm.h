@@ -9,7 +9,7 @@ using namespace Eigen;
 class Lstm : public GenericLayer
 {
 public:
-	Lstm(int input_size, int output_size, double alpha);
+	Lstm(int input_size, int output_size, double alpha, double beta1);
 
 	// external utils
 	void resize(size_t new_depth);

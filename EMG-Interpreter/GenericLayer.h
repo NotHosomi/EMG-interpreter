@@ -9,7 +9,7 @@ using namespace Eigen;
 class GenericLayer
 {
 public:
-	GenericLayer(int input_size, int output_size, double alpha);
+	GenericLayer(int input_size, int output_size, double alpha, double beta1);
 
 
 
@@ -38,6 +38,7 @@ protected:
 	int depth;
 	// Optimizer components
 	double alpha;
+	double beta1;
 	int adam_t = 0;
 };
 

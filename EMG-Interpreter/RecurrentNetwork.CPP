@@ -4,7 +4,7 @@
 #include <assert.h>
 #include <fstream>
 
-RecurrentNetwork::RecurrentNetwork(int input_size, double _alpha, std::string _name)
+RecurrentNetwork::RecurrentNetwork(int input_size, double _alpha, double _beta1, std::string _name)
 {
     name = _name;
     alpha = _alpha;
@@ -20,7 +20,7 @@ RecurrentNetwork::RecurrentNetwork(int input_size, double _alpha, std::string _n
 #endif
 }
 // Load from file
-RecurrentNetwork::RecurrentNetwork(std::ifstream& file, std::string _name, double _alpha)
+RecurrentNetwork::RecurrentNetwork(std::ifstream& file, std::string _name, double _alpha, double _beta1)
 {
     name = _name;
     int num_layers = 0;
@@ -31,6 +31,11 @@ RecurrentNetwork::RecurrentNetwork(std::ifstream& file, std::string _name, doubl
     double file_alpha;
     file.read(reinterpret_cast<char*>(&file_alpha), sizeof(double));
     alpha = _alpha ? _alpha : file_alpha;
+
+    // Todo, save the beta
+    //double file_alpha;
+    //file.read(reinterpret_cast<char*>(&file_alpha), sizeof(double));
+    //beta1 = _alpha ? _alpha : file_alpha;
 
     for (int l = 0; l < num_layers; ++l)
     {
@@ -56,11 +61,11 @@ void RecurrentNetwork::addLayer(char layer_type, int output_size)
 {
     switch (layer_type)
     {
-    case 'D': layers.emplace_back(new DenseLayer(OUTPUT_SIZE, output_size, alpha));
+    case 'D': layers.emplace_back(new DenseLayer(OUTPUT_SIZE, output_size, alpha, beta1));
         break;
-    case 'L': layers.emplace_back(new Lstm(OUTPUT_SIZE, output_size, alpha));
+    case 'L': layers.emplace_back(new Lstm(OUTPUT_SIZE, output_size, alpha, beta1));
         break;
-    case 'E': layers.emplace_back(new ElmanLayer(OUTPUT_SIZE, output_size, alpha));
+    case 'E': layers.emplace_back(new ElmanLayer(OUTPUT_SIZE, output_size, alpha, beta1));
         break;
     default: std::cout << "Invalid layer type " << layer_type << "\t(D, L, E)" << std::endl;
         return;

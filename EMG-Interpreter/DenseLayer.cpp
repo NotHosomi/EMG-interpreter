@@ -2,8 +2,8 @@
 #include <assert.h>
 #include <iostream>
 
-DenseLayer::DenseLayer(int input_size, int output_size, double alpha) :
-	GenericLayer(input_size, output_size, alpha)
+DenseLayer::DenseLayer(int input_size, int output_size, double alpha, double beta1) :
+	GenericLayer(input_size, output_size, alpha, beta1)
 {
 	// init W matrices for gates
 	w = MatrixXd::Random(OUTPUT_SIZE, INPUT_SIZE + 1); // + 1 (bias)
@@ -51,16 +51,17 @@ void DenseLayer::applyUpdates()
 	// average gradients over sequence
 	grad /= x_history.size();
 
-	++adam_t;
 	// Momentum
 	// Vdw = Beta1 * Vdw + (1 - Beta1) * dw
-	momentum = 0.9 * momentum + 0.1 * grad;
+	momentum = beta1 * momentum + (1-beta1) * grad;
 	// RMS Prop
 	// Sdw = Beta2 * Sdw + (1-Beta2) * dw^2
 	rms_prop = 0.999 * rms_prop + 0.001 * grad.cwiseProduct(grad);
 
+	// increment the bias correction factor
+	++adam_t;
 	// Bias correction
-	MatrixXd Vc = momentum / (1- pow(0.9, adam_t));
+	MatrixXd Vc = momentum / (1- pow(beta1, adam_t));
 	MatrixXd Sc = rms_prop / (1- pow(0.999, adam_t));
 
 	// apply update sums

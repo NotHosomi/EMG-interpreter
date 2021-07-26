@@ -7,7 +7,7 @@
 
 #define LOG_ACC 0
 #define LOG_SEQ 1
-#define LOG_SEQ_TRAIN 1
+#define LOG_SEQ_TRAIN 0
 
 class RecurrentNetwork
 {
@@ -20,8 +20,8 @@ class RecurrentNetwork
 public:
 	//RecurrentNetwork(std::vector<std::tuple<char, int>> topology, int input_size);
 	RecurrentNetwork() = delete;
-	RecurrentNetwork(int input_size, double _alpha, std::string _name);
-	RecurrentNetwork(std::ifstream& file, std::string _name, double _alpha = 0);
+	RecurrentNetwork(int input_size, double _alpha, double _beta1, std::string _name);
+	RecurrentNetwork(std::ifstream& file, std::string _name, double _alpha = 0, double _beta1 = 0.9);
 	~RecurrentNetwork();
 
 	void addLayer(char layer_type, int output_size);
@@ -58,6 +58,7 @@ private:
 	int INPUT_SIZE;
 	int OUTPUT_SIZE;
 	double alpha;
+	double beta1;
 	std::vector<GenericLayer*> layers;
 	std::vector<VectorXd> y_history;
 	double best_loss = 1024;

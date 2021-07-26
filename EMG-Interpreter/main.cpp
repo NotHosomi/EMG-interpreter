@@ -28,6 +28,7 @@
 // default hyperparams
 #define EPOCHS 100
 #define ALPHA 0.15;
+#define BETA1 0.9;
 #define GAIN 2;
 #define WINDOW_SIZE 1;
 
@@ -40,6 +41,7 @@ int main()
     // Init hyperparameters
     unsigned int epochs = EPOCHS;
     double alpha = ALPHA;
+    double beta1 = BETA1;
     double input_gain = GAIN;
     bool shuffle_data = true;
     bool training_mode = true;
@@ -96,6 +98,21 @@ int main()
         {
             alpha = ALPHA;
             std::cout << "Using default alpha (" << std::to_string(alpha) << ")" << std::endl;
+        }
+
+        // Set hyperparam BETA1
+        beta1 = 0;
+        std::cout << "Beta 1 (Learning Rate): ";
+        while (!(std::cin >> beta1))
+        {
+            std::cout << "Invalid input, please enter an decimal" << std::endl;
+            std::cin.clear();
+            while (std::cin.get() != '\n'); // flush cin buffer
+        }
+        if (beta1 <= 0)
+        {
+            beta1 = BETA1;
+            std::cout << "Using default alpha (" << std::to_string(beta1) << ")" << std::endl;
         }
     }
 
@@ -159,7 +176,7 @@ int main()
         // Create a new model
         new_file = true;
         std::cout << "Creating new network \"" << net_name << ".dat\"" << std::endl;
-        rnn = new RecurrentNetwork(INPUT_SIZE * window_size, alpha, net_name);
+        rnn = new RecurrentNetwork(INPUT_SIZE * window_size, alpha, beta1, net_name);
         std::vector<std::tuple<char, int>> desc = buildTopology();
         for (auto L : desc)
         {
@@ -169,13 +186,15 @@ int main()
     net_file.close();
 #else
     std::cout << "\nBuilding model..." << std::endl;
-#if !USE_PROCEDURAL_DATA
-    rnn = new RecurrentNetwork(INPUT_SIZE, alpha, "Untitled");
-    rnn->addLayer('L', 16);
-    rnn->addLayer('L', 16);
-    rnn->addLayer('D', LABEL_SIZE);
+#if USE_PROCEDURAL_DATA
+    rnn = new RecurrentNetwork(INPUT_SIZE * window_size, alpha, beta1, "Untitled");
+    std::vector<std::tuple<char, int>> desc = buildTopology();
+    for (auto L : desc)
+    {
+        rnn->addLayer(std::get<char>(L), std::get<int>(L));
+    }
 #else
-    rnn = new RecurrentNetwork(2, alpha, "Untitled");
+    rnn = new RecurrentNetwork(2, alpha, beta1, "Untitled");
     rnn->addLayer('E', 2);
     rnn->addLayer('D', 1);
 #endif

@@ -63,7 +63,7 @@
       <item row="2" column="1">
        <widget class="QProgressBar" name="Bar_Output1">
         <property name="value">
-         <number>24</number>
+         <number>0</number>
         </property>
        </widget>
       </item>
@@ -77,7 +77,7 @@
       <item row="4" column="1">
        <widget class="QProgressBar" name="Bar_Output2">
         <property name="value">
-         <number>24</number>
+         <number>0</number>
         </property>
        </widget>
       </item>
@@ -115,7 +115,7 @@
          <bool>true</bool>
         </property>
         <property name="value">
-         <number>24</number>
+         <number>0</number>
         </property>
        </widget>
       </item>
@@ -129,14 +129,14 @@
       <item row="6" column="1">
        <widget class="QProgressBar" name="Bar_Output3">
         <property name="value">
-         <number>24</number>
+         <number>0</number>
         </property>
        </widget>
       </item>
       <item row="0" column="1">
        <widget class="QProgressBar" name="Bar_Output0">
         <property name="value">
-         <number>24</number>
+         <number>0</number>
         </property>
        </widget>
       </item>
@@ -177,7 +177,7 @@
          <number>1023</number>
         </property>
         <property name="value">
-         <number>24</number>
+         <number>0</number>
         </property>
         <property name="textVisible">
          <bool>true</bool>
@@ -209,7 +209,7 @@
          <number>1023</number>
         </property>
         <property name="value">
-         <number>24</number>
+         <number>0</number>
         </property>
         <property name="textVisible">
          <bool>true</bool>
@@ -262,7 +262,7 @@
          <number>1023</number>
         </property>
         <property name="value">
-         <number>24</number>
+         <number>0</number>
         </property>
         <property name="textVisible">
          <bool>true</bool>
