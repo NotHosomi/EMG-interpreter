@@ -19,6 +19,7 @@ RecurrentNetwork::RecurrentNetwork(int input_size, double _alpha, double _beta1,
     }
 #endif
 }
+
 // Load from file
 RecurrentNetwork::RecurrentNetwork(std::ifstream& file, std::string _name, double _alpha, double _beta1)
 {
@@ -59,6 +60,7 @@ RecurrentNetwork::~RecurrentNetwork()
 
 void RecurrentNetwork::addLayer(char layer_type, int output_size)
 {
+    // pick layer type
     switch (layer_type)
     {
     case 'D': layers.emplace_back(new DenseLayer(OUTPUT_SIZE, output_size, alpha, beta1));
@@ -70,6 +72,7 @@ void RecurrentNetwork::addLayer(char layer_type, int output_size)
     default: std::cout << "Invalid layer type " << layer_type << "\t(D, L, E)" << std::endl;
         return;
     }
+    // update output size to reflect new layer
     OUTPUT_SIZE = layers.back()->getOutputSize();
 }
 
@@ -130,6 +133,7 @@ double RecurrentNetwork::trainSet(Dataset<std::vector<VectorXd>> data)
     for (int seq = 0; seq < data.inputs.size(); ++seq)
     {
 #if LOG_SEQ_TRAIN
+        // open output log file
         std::ofstream log_seq("logs/train_seqs/seq_" + std::to_string(seq) + ".txt", std::ios::trunc);
         if (!log_seq)
         {
@@ -140,6 +144,7 @@ double RecurrentNetwork::trainSet(Dataset<std::vector<VectorXd>> data)
 #endif
         double local_loss = 0;
         resize(data.inputs[seq].size());
+        // feed forward for every sample in the sequence
         for (int t = 0; t < data.inputs[seq].size(); ++t)
         {
             VectorXd outputs = feedForward(data.inputs[seq][t]);
@@ -165,9 +170,12 @@ double RecurrentNetwork::trainSet(Dataset<std::vector<VectorXd>> data)
         local_acc = 0;
 #endif
 
+        // Backpropagate and update weights
         backProp(data.labels[seq]);
         applyUpdates();
         clearCaches();
+
+        // average loss across the length of the sequence
         local_loss /= data.inputs[seq].size();
         net_loss += local_loss;
     }
@@ -175,6 +183,7 @@ double RecurrentNetwork::trainSet(Dataset<std::vector<VectorXd>> data)
     net_acc /= data.inputs.size();
     acc_log << net_acc << " ";
 #endif
+    // average loss across the number of samples
     net_loss /= data.inputs.size();
     return net_loss;
 }
@@ -193,6 +202,7 @@ double RecurrentNetwork::evalSeq(std::vector<VectorXd> inputs, std::vector<Vecto
     return local_loss;
 }
 
+// same as trainSet() but without the backpropagation
 double RecurrentNetwork::evalSet(Dataset<std::vector<VectorXd>> data)
 {
     double net_loss = 0;
@@ -257,6 +267,7 @@ double RecurrentNetwork::evalSet(Dataset<std::vector<VectorXd>> data)
     return net_loss;
 }
 
+// used by gradCheck(). Same as evalSet() without any logging
 double RecurrentNetwork::evalSetNoMetrics(Dataset<std::vector<VectorXd>> data)
 {
     double net_loss = 0;
@@ -276,7 +287,6 @@ double RecurrentNetwork::evalSetNoMetrics(Dataset<std::vector<VectorXd>> data)
     net_loss /= data.inputs.size();
     return net_loss;
 }
-
 
 void RecurrentNetwork::print()
 {
@@ -596,7 +606,7 @@ void RecurrentNetwork::gradCheckAtT(std::vector<VectorXd> inputs, std::vector<Ve
     Gradient checking todo:
     check the grads of each timestep, find out WHICH timestep causes it
     maybe only happens if full Feedforward rather than single timestep, for example
-    what are the possible sources of the issue
+    what are the possible sources of the issue?
     write out what is different between single and multiple sample sequence
 */
 
@@ -605,8 +615,10 @@ void RecurrentNetwork::useCheckpoints(bool useCkp)
     checkpoints_enabled = useCkp;
 }
 
+// -----------
+//  Internals
+// -----------
 
-// Internals
 VectorXd RecurrentNetwork::feedForward(VectorXd input)
 {
     assert(input.size() == INPUT_SIZE && "!!! Input size mismatch !!!");
@@ -666,6 +678,7 @@ void RecurrentNetwork::clearCaches()
     y_history.clear();
 }
 
+// for optimizing memory usage
 void RecurrentNetwork::resize(size_t new_depth)
 {
     for (auto L : layers)

@@ -6,6 +6,8 @@
 
 using namespace Eigen;
 
+#define AVG_GRAD 1
+
 class GenericLayer
 {
 public:

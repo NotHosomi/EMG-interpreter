@@ -30,6 +30,7 @@
 #define ALPHA 0.15;
 #define BETA1 0.9;
 #define GAIN 2;
+#define SPLIT 0.1;
 #define WINDOW_SIZE 1;
 
 // Prep functions
@@ -46,6 +47,9 @@ int main()
     bool shuffle_data = true;
     bool training_mode = true;
     int window_size = WINDOW_SIZE;
+    double split_ratio = SPLIT;
+
+    // User-input for Hyperparameters
 #if !DEFAULT_HYPERPARAMS
     std::cout << "-- HYPERPARAMERS --\n(enter 0 to use defaults, loading a model will override some of these values)" << std::endl;
 
@@ -102,7 +106,7 @@ int main()
 
         // Set hyperparam BETA1
         beta1 = 0;
-        std::cout << "Beta 1 (Learning Rate): ";
+        std::cout << "Beta 1 (Momentum): ";
         while (!(std::cin >> beta1))
         {
             std::cout << "Invalid input, please enter an decimal" << std::endl;
@@ -113,6 +117,21 @@ int main()
         {
             beta1 = BETA1;
             std::cout << "Using default alpha (" << std::to_string(beta1) << ")" << std::endl;
+        }
+
+        // Set hyperparam WINDOW SIZE
+        window_size = 0;
+        std::cout << "Sliding window size: ";
+        while (!(std::cin >> window_size))
+        {
+            std::cout << "Invalid input, please enter a positive integer" << std::endl;
+            std::cin.clear();
+            while (std::cin.get() != '\n'); // flush cin buffer
+        }
+        if (window_size <= 0)
+        {
+            window_size = WINDOW_SIZE;
+            std::cout << "Using default window size (" << window_size << ")" << std::endl;
         }
     }
 
@@ -131,19 +150,24 @@ int main()
         std::cout << "Using default input gain (" << std::to_string(input_gain) << ")" << std::endl;
     }
 
-    // Set hyperparam WINDOW SIZE
-    window_size = 0;
-    std::cout << "Sliding window size: ";
-    while (!(std::cin >> window_size))
+    // Set hyperparam INPUT GAIN
+    split_ratio = 0;
+    std::cout << "Split ratio: ";
+    while (!(std::cin >> split_ratio))
     {
-        std::cout << "Invalid input, please enter a positive integer" << std::endl;
+        std::cout << "Invalid input, please enter an decimal between 0 and 1" << std::endl;
         std::cin.clear();
         while (std::cin.get() != '\n'); // flush cin buffer
     }
-    if (window_size <= 0)
+    if (split_ratio <= 0)
     {
-        window_size = WINDOW_SIZE;
-        std::cout << "Using default window size (" << window_size << ")" << std::endl;
+        split_ratio = SPLIT;
+        std::cout << "Using default Split (" << std::to_string(split_ratio) << ")" << std::endl;
+    }
+    else if (split_ratio > 1)
+    {
+        split_ratio = 0;
+        std::cout << "Using no Split (" << std::to_string(split_ratio) << ")" << std::endl;
     }
 #endif
 
@@ -158,12 +182,13 @@ int main()
     std::ifstream net_file;
     std::cout << "Net File: ";
     std::cin >> net_name;
+
+    // Try user-specified file
     if (net_name == "untitled" || net_name == "new" || net_name == "New" || net_name == "0")
     {
         net_name = "Untitled";
     }
     net_file.open("nets/" + net_name + ".dat", std::ios::binary | std::ios::in);
-    bool new_file = false;
     if (net_file.is_open() && net_name != "Untitled")
     {
         // Load an existing model from file
@@ -174,10 +199,11 @@ int main()
     else
     {
         // Create a new model
-        new_file = true;
         std::cout << "Creating new network \"" << net_name << ".dat\"" << std::endl;
         rnn = new RecurrentNetwork(INPUT_SIZE * window_size, alpha, beta1, net_name);
+        // User-input for Topology
         std::vector<std::tuple<char, int>> desc = buildTopology();
+        // Build topology according to descriptor
         for (auto L : desc)
         {
             rnn->addLayer(std::get<char>(L), std::get<int>(L));
@@ -185,6 +211,7 @@ int main()
     }
     net_file.close();
 #else
+    // hard-coded topology for faster testing
     std::cout << "\nBuilding model..." << std::endl;
 #if USE_PROCEDURAL_DATA
     rnn = new RecurrentNetwork(INPUT_SIZE * window_size, alpha, beta1, "Untitled");
@@ -202,7 +229,7 @@ int main()
 
     // Load samples
 #if !USE_PROCEDURAL_DATA
-
+    // Open file
     std::ifstream data_file;
     data_file.open("data/bulk.emg");
     if (!data_file)
@@ -210,10 +237,12 @@ int main()
         std::cout << "Failed to open file 'data/bulk.emg'" << std::endl;
         return 0;
     }
+    // Read data
     Dataset<std::vector<VectorXd>> train_set = mountEmg(data_file, input_gain, window_size);
+    // Prep datasets
     if(shuffle_data)
         train_set.shuffle();
-    Dataset<std::vector<VectorXd>> test_set = train_set.split(0.9);
+    Dataset<std::vector<VectorXd>> test_set = train_set.split(1 - split_ratio);
     std::cout << "Train split:\t" << train_set.inputs.size()
         << "\tTest split:\t" << test_set.inputs.size() << std::endl;
 #else // Procedural data gen
@@ -253,16 +282,19 @@ int main()
     // eval only mode
     if (!training_mode)
     {
+        // no need to save if we've already 
         rnn->useCheckpoints(false);
         double test_err = rnn->evalSet(test_set);
         std::cout << "\nLoss: " << std::to_string(test_err) << std::endl;
         delete rnn;
+        // exit early
         return 0;
     }
 
     // Where the actual training happens
-#if TRAIN
+#pragma region TRAIN_NET
 
+#if TRAIN
     // open the log file to record the training curve
     std::ofstream log("logs/loss.txt", std::ios::trunc);
     if (!log)
@@ -271,7 +303,7 @@ int main()
         return 3;
     }
     std::cout << "\n-- TRAIN NET --" << std::endl;
-#pragma region TRAIN_NET
+
     // prep early-exit vars
     int stable_stop_counter = 0;
     int stable_stop_threshold = 10;
@@ -310,7 +342,6 @@ int main()
 #endif
     }
     rnn->save();
-#pragma endregion
 #elif INTRAEPOCH_LOGGING
     // open the log file to record the training curve
     std::ofstream log("logs/loss.txt", std::ios::trunc);
@@ -335,7 +366,9 @@ int main()
             log << std::to_string(train_err) << " 0 ";
         }
     }
-#endif // TRAIN
+#endif // TRAIN ELIF INTRAEPOCH_LOGGING
+
+#pragma endregion
 
     // For debugging
 #if GRAD_CHECK
@@ -370,7 +403,11 @@ int main()
         std::cout << "\nLoss: " << std::to_string(test_err) << std::endl;
         delete rnn;
     }
+    net_file.close();
 #endif //  MODEL_IO
+
+    // idle for user review
+    std::getchar();
 
     // an implementation of a regular DNN
     // The RNN class is basically just a batch DNN anyway tho
@@ -403,6 +440,7 @@ std::vector<std::tuple<char, int>> buildTopology()
 {
     std::vector<std::tuple<char, int>> topology_desc;
 #if DEFAULT_TOPOLOGY
+    // hardcoded topology for testing
     topology_desc.emplace_back('L', 16);
     topology_desc.emplace_back('L', 16);
     topology_desc.emplace_back('D', 5);
@@ -410,53 +448,57 @@ std::vector<std::tuple<char, int>> buildTopology()
 #endif
     std::cout << "\n-- TOPOLOGY --\n(Output layer must be of size 5. Enter 'done' to proceed. Enter 'pop' to remove last layer)" << std::endl;
 
+    // Only break on a specific input
     while (1)
     {
         std::cout << "Add Layer: ";
         std::string txt;
         std::cin >> txt;
         txt[0] = std::toupper(txt[0]);
+
         // exit check
         if (txt == "Done")
         {
             if (std::get<int>(topology_desc.back()) != LABEL_SIZE)
             {
+                // Output layer must match the label size
                 std::cout << "Final layer must contain " << LABEL_SIZE << " neurons" << std::endl;
                 continue;
-                //std::cout << "Final layer must contain " << LABEL_SIZE << " neurons. Appending D" << LABEL_SIZE << std::endl;
-                //topology_desc.emplace_back('D', LABEL_SIZE);
-                }
+            }
             else if (std::get<char>(topology_desc.back()) == 'L')
             {
+                // Output layer cannot be LSTM, as the LSTM Hidden state values are in the range -1 to 1, but Binary Cross Entropy requires values between 0 and 1
                 std::cout << "Final layer must use sigmoid activation (E, D)" << std::endl;
                 continue;
-                //std::cout << "Final layer must use sigmoid activation (E, D). Appending D" << LABEL_SIZE << std::endl;
-                //topology_desc.emplace_back('D', LABEL_SIZE);
             }
             break;
-            }
+        }
+
+        // delete layer
         if (txt == "Pop")
         {
             std::cout << "Removed " << std::get<char>(topology_desc.back()) << std::get<int>(topology_desc.back()) << std::endl;
             topology_desc.pop_back();
             continue;
         }
+
         // contents validation
         if (txt.size() < 2)
         {
             std::cout << "Invalid input - expected: (char) layer type, (int) layer size\n i.e. L16, E3, D5" << std::endl;
             continue;
         }
-        // layer-type validation
+
+        // validate & determine layer-type
         if (txt[0] != 'D' && txt[0] != 'E' && txt[0] != 'L')
         {
             std::cout << "Invalid layer type. Must be (L)stm, (E)lman or (D)ense" << std::endl;
             continue;
         }
-        // determine type
         char type = txt[0];
         txt.erase(txt.begin());
-        // determine size
+
+        // validate & determine size
         if (std::find_if(txt.begin(), txt.end(), [](char c) { return !std::isdigit(c); }) != txt.end())
         {
             std::cout << "Invalid input - expected: (char) layer type, (int) layer size\n i.e. L16, E3, D5" << std::endl;
@@ -466,12 +508,15 @@ std::vector<std::tuple<char, int>> buildTopology()
 
         topology_desc.emplace_back(type, size);
     }
+
+    // print descriptor
     std::cout << "Proceeding with ";
     for (auto L : topology_desc)
     {
         std::cout << std::get<char>(L) << std::get<int>(L) << " ";
     }
     std::cout << std::endl;
+
     return topology_desc;
 }
 
@@ -485,19 +530,26 @@ Dataset<std::vector<VectorXd>> mountEmg(std::ifstream& data_file, double input_g
     Dataset<std::vector<VectorXd>> dataset;
     std::string line;
     int seq_id = -1;
+    // loop through every sequence (line) in the file
     while (std::getline(data_file, line))
     {
         ++seq_id;
+        // add a new entry to the list of input and label sequences
         dataset.inputs.emplace_back();
         dataset.labels.emplace_back();
 
         std::string sample;
         std::stringstream linestream(line);
         getline(linestream, sample, '!'); // Dump the first sample in the sequence due to false label bug
+
+        // loop through every sample in the file
         while (getline(linestream, sample, '!'))
         {
             std::string value;
             std::stringstream samplestream(sample);
+
+            // loop through every element in the sample
+            // format: (input, input, input, label, label, label, label, label)
             while (getline(samplestream, value, '-'))
             {
                 try
@@ -506,9 +558,10 @@ Dataset<std::vector<VectorXd>> mountEmg(std::ifstream& data_file, double input_g
                 }
                 catch (...)
                 {
+                    // This shouldn't occur, because concat.py has a similar check, but incase of human error
                     std::cout << "BAD SAMPLE: \"" << sample << "\" in sequence " << seq_id << " of file" << std::endl;
                     values.clear();
-                    // TODO: Do I need to pop back of input/label sequences??
+                    // abort current sequence
                     dataset.inputs.pop_back();
                     dataset.labels.pop_back();
                     // Yes yes, I know GOTO is bad, but its the cleanest way to escape nested loops
@@ -516,15 +569,18 @@ Dataset<std::vector<VectorXd>> mountEmg(std::ifstream& data_file, double input_g
                 }
             }
 
+            // initialize the Vector of inputs
             VectorXd input(INPUT_SIZE*window_size);
             input.setZero();
             for (int i = 0; i < INPUT_SIZE; ++i)
             {
                 input[i] = values[i];
             }
+            // normalize 
             input /= EMG_MAX / input_gain;
             dataset.inputs.back().emplace_back(input);
             
+            // if we're using sliding window, fill the rest of the input vector with previous timesteps' EMG data
             for (int t = dataset.inputs.back().size()-1; t >= dataset.inputs.back().size() - window_size && t >= 0; --t)
             {
                 for (int i = 0; i < INPUT_SIZE; ++i)
@@ -533,6 +589,7 @@ Dataset<std::vector<VectorXd>> mountEmg(std::ifstream& data_file, double input_g
                 }
             }
 
+            // init and fill the label vector
             VectorXd label(LABEL_SIZE);
             label.setZero();
             for (int i = 0; i < values.size() - INPUT_SIZE; ++i)
@@ -544,8 +601,8 @@ Dataset<std::vector<VectorXd>> mountEmg(std::ifstream& data_file, double input_g
             values.clear();
         }
 
-        // Bad sample jump point
-    panic:;
+        // Bad sample goto point
+        panic:;
     }
     data_file.close();
     std::cout << "Signal data mounted" << std::endl;

@@ -8,7 +8,7 @@ out_dir = "C:/GamesTech/3rd-year/CCTP/EMG-interpreter/EMG-Interpreter/data"
 
 f_list = os.listdir(in_dir)
 if(outname in f_list):
-    f_list.remove(in_dir)
+    f_list.remove(outname)
 
 n = 0
 with open(out_dir + '/' + outname, 'w') as out:

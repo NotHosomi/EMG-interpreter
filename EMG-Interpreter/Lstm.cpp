@@ -158,11 +158,13 @@ VectorXd Lstm::backProp(VectorXd gradient, unsigned int t)
 
 void Lstm::applyUpdates()
 {
+#if AVG_GRAD
 	// average gradients over sequence
 	tfu /= x_history.size();
 	tiu /= x_history.size();
 	tcu /= x_history.size();
 	tou /= x_history.size();
+#endif
 
 
 #ifdef PRINT_UPDATES

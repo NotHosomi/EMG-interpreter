@@ -50,7 +50,6 @@ private:
 	double backProp(std::vector<VectorXd> labels);
 	void applyUpdates();
 	void clearCaches();
-
 	void resize(size_t new_depth);
 	
 

@@ -7,9 +7,12 @@
 
 #define _CRT_SECURE_NO_WARNINGS
 
+// disable to speed up testing
+#define PICK_FILE 0
+#define PICK_COM 1
 
 // The Arduino writes about 70 per second
-const int POLL_TIME = 100; // ms
+const int POLL_TIME = 10; // ms
 const float SAMPLE_RESOLUTION = 10; // per sec
 const float SAMPLE_TIME = 1 / SAMPLE_RESOLUTION; // in seconds
 
@@ -90,15 +93,20 @@ void run(std::ofstream& file, Serial* port)
     unsigned int length = 0;
     Timer tmr;
 
+    do
+    {
+        // Flush the buffer
+        length = port->ReadData(buffer, buffer_size);
+    } while (length == buffer_size);
+
     // Begin read cycle
     tmr.mark();
     while (port->IsConnected())
     {
-        length = port->ReadData(buffer, buffer_size);
-        buffer[length] = 0;
-
         if (tmr.peek() > SAMPLE_TIME)
         {
+            length = port->ReadData(buffer, buffer_size);
+            buffer[length] = 0;
             truncateBuffer(buffer, length);
             saveSample(buffer, genLabels(), file);
             tmr.mark();
@@ -119,7 +127,7 @@ int main() {
     //
     std::string filename;
     std::ofstream file;
-#ifdef PICK_FILE
+#if PICK_FILE
     while (1)
     {
         std::cout << "Filename: ";
@@ -151,10 +159,8 @@ int main() {
 
     // Open port
     Serial* port;
-    std::cout << "Connecting..." << std::endl;
-#ifdef PICK_COM
+#if PICK_COM
     std::string portname;
-    Serial* port;
     while (1)
     {
         std::cout << "Port: ";
@@ -166,10 +172,10 @@ int main() {
             std::cout << "Connected successfully" << std::endl;
             break;
         }
-        std::cout << "\nFailed to open " << portname << "\nPress any key to retry..." << std::endl;
-        std::getchar();
+        std::cout << "\nFailed to open " << portname << "\nPlease try again..." << std::endl;
     }
 #else
+    std::cout << "Connecting..." << std::endl;
     port = new Serial("\\\\.\\com5");
     if (!port->IsConnected())
     {

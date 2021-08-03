@@ -82,7 +82,9 @@ void ElmanLayer::applyUpdates()
 {
 	// average gradients over sequence
 	// This isn't NORMAL, but it seems to mitigate the gradient bug a tiny bit
+#if AVG_GRAD
 	grad /= x_history.size();
+#endif
 
 
 	// Momentum

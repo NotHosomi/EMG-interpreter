@@ -16,8 +16,10 @@ DenseLayer::DenseLayer(int input_size, int output_size, double alpha, double bet
 	clearCaches();
 }
 
+// Feedforward through the layer
 VectorXd DenseLayer::feedForward(VectorXd x_t)
 {
+	// append a bias 
 	VectorXd in(INPUT_SIZE + 1);
 	in << x_t, 1;
 	x_history.push_back(in);
@@ -32,12 +34,15 @@ VectorXd DenseLayer::feedForward(VectorXd x_t)
 
 VectorXd DenseLayer::backProp(VectorXd gradient, unsigned int t)
 {
-	//VectorXd da_dz = z_history[t].unaryExpr(&dsigmoid);
+	// dZ = sig'(Z) * dA;
 	VectorXd de_dz = z_history[t].unaryExpr(&dsigmoid).cwiseProduct(gradient);
-	//std::cout << "\ndz:\n" << de_dz << "\nX:\n" << x_history[t] << std::endl;
+	// dW = dZ * x^T;
 	MatrixXd de_dw = de_dz * x_history[t].transpose();
 
+	// add the local weights derivative to the sum
 	grad += de_dw;
+
+	// extract gradients of the input
 	return w.block(0, 0, OUTPUT_SIZE, INPUT_SIZE).transpose() * de_dz;
 }
 
@@ -49,7 +54,10 @@ VectorXd DenseLayer::backProp(VectorXd gradient, unsigned int t)
 void DenseLayer::applyUpdates()
 {
 	// average gradients over sequence
+	// This isn't NORMAL, but it seems to mitigate the gradient bug a tiny bit
+#if AVG_GRAD
 	grad /= x_history.size();
+#endif
 
 	// Momentum
 	// Vdw = Beta1 * Vdw + (1 - Beta1) * dw
@@ -71,6 +79,7 @@ void DenseLayer::applyUpdates()
 	clearCaches();
 }
 
+// reserve cache memory to prevent relocation as they fill up
 void DenseLayer::resize(size_t new_depth)
 {
 	clearCaches();
